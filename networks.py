@@ -277,7 +277,8 @@ class RSSM(nn.Module):
         x = self._img_out_layers(deter)
         stats = self._suff_stats_layer("ims", x)
         dist = self.get_dist(stats)
-        return dist.mode()
+        # return dist.mode()
+        return dist.base_dist.mode()
 
     def _suff_stats_layer(self, name, x):
         if self._discrete:

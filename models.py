@@ -9,6 +9,52 @@ import tools
 
 to_np = lambda x: x.detach().cpu().numpy()
 
+def map_dict(fn, d):
+    """takes a dictionary and applies the function to every element"""
+    return type(d)(map(lambda kv: (kv[0], fn(kv[1])), d.items()))
+
+def make_recursive(fn, *argv, **kwargs):
+    """ Takes a fn and returns a function that can apply fn on tensor structure
+     which can be a single tensor, tuple or a list. """
+
+    def recursive_map(tensors):
+        if tensors is None:
+            return tensors
+        elif isinstance(tensors, list) or isinstance(tensors, tuple):
+            return type(tensors)(map(recursive_map, tensors))
+        elif isinstance(tensors, dict):
+            return type(tensors)(map_dict(recursive_map, tensors))
+        elif isinstance(tensors, torch.Tensor) or isinstance(tensors, np.ndarray):
+            return fn(tensors, *argv, **kwargs)
+        else:
+            try:
+                return fn(tensors, *argv, **kwargs)
+            except Exception as e:
+                print("The following error was raised when recursively applying a function:")
+                print(e)
+                raise ValueError("Type {} not supported for recursive map".format(type(tensors)))
+
+    return recursive_map
+
+def map_recursive(fn, tensors):
+    return make_recursive(fn)(tensors)
+
+def map2np(struct):
+    """Recursively maps all elements in struct to numpy ndarrays."""
+    return map_recursive(to_np, struct)
+
+def listdict2dictlist(LD):
+    """ Converts a list of dicts to a dict of lists """
+
+    # Take intersection of keys
+    keys = reduce(lambda x,y: x & y, (map(lambda d: d.keys(), LD)))
+    return AttrDict({k: [dic[k] for dic in LD] for k in keys})
+
+
+def dictlist2listdict(DL):
+    " Converts a dict of lists to a list of dicts "
+    return [dict(zip(DL,t)) for t in zip(*DL.values())]
+
 
 class RewardEMA(object):
     """running mean and std"""
@@ -213,6 +259,41 @@ class WorldModel(nn.Module):
 
         return torch.cat([truth, model, error], 2)
 
+    def compute_traj_errors(self, data, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+        data = self.preprocess(data)
+        embed = self.encoder(data)
+        states, post = self.dynamics.observe(
+            embed, data["action"], data["is_first"]
+        )
+        init = {k: v[:, 0] for k, v in states.items()}
+        prior = self.dynamics.imagine(data["action"], init)
+        recon = self.heads["decoder"](self.dynamics.get_feat(prior))
+        recon_obs = {key: recon[key].mode() for key in recon.keys()}
+
+        max_steps = data['action'].shape[1] - 1
+        if max_steps not in num_steps:
+            num_steps.append(max_steps)
+
+
+        metrics = {}
+        for num_step in num_steps:
+            if num_step > data['action'].shape[1]:
+                continue
+
+            obs_errors = []
+            # for i in range(0, data['action'].shape[1] - num_step - 1, num_step):
+            for key in recon_obs.keys():
+                obs_error = torch.square(data[key][:, num_step] - recon_obs[key][:, num_step]).mean().detach().cpu().numpy()
+                obs_errors.append(obs_error)
+
+            obs_errors = np.array(obs_errors)
+            metrics.update({
+                f"rssm/errors/dynamics_mse_{num_step:04}_step": obs_errors.mean(),
+                f"rssm/errors/dynamics_mse_std_{num_step:04}_step": obs_errors.std(),
+                f"rssm/errors/dynamics_mse_max_{num_step:04}_step": obs_errors.max(),
+                f"rssm/errors/dynamics_mse_min_{num_step:04}_step": obs_errors.min(),
+            })
+        return metrics, post
 
 class ImagBehavior(nn.Module):
     def __init__(self, config, world_model, stop_grad_actor=True, reward=None):
@@ -360,6 +441,58 @@ class ImagBehavior(nn.Module):
             metrics.update(self._actor_opt(actor_loss, self.actor.parameters()))
             metrics.update(self._value_opt(value_loss, self.value.parameters()))
         return imag_feat, imag_state, imag_action, weights, metrics
+
+
+    def compute_traj_errors(self, env, start, horizon, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+        max_eval = 128
+        with torch.cuda.amp.autocast(self._use_amp):
+            imag_feat, imag_state, imag_action = self._imagine(
+                start, self.actor, horizon, None
+            )
+
+            recon = self._world_model.heads["decoder"](imag_feat)
+        recon_obs = {key: recon[key].mode().permute((1, 0, 2)) for key in recon.keys()}
+        keys = list(recon_obs.keys())
+        recon_obs = dictlist2listdict(recon_obs)[:max_eval]
+        imag_action = imag_action.permute((1, 0, 2))[:max_eval]
+
+        max_steps = horizon - 1
+        if max_steps not in num_steps:
+            num_steps.append(max_steps)
+
+        metrics = {}
+        for num_step in num_steps:
+            obs_errors = []
+            if num_step > horizon:
+                continue
+
+            obs_errors = []
+            for obs, action in zip(recon_obs, imag_action):
+                obs = dictlist2listdict(obs)
+                for i in range(0, horizon - num_step, num_step):
+                    try:
+                        env.reset()()
+                        env.set_state(map2np(obs[i]))
+                        for j in range(num_step):
+                            act = to_np(action[i+j])
+                            gt_obs, _, _, _ = env.step({'action': act})()
+
+                        pred_obs = obs[i+num_step]
+                        obs_error = []
+                        for key in pred_obs.keys():
+                            obs_error.append(np.square(gt_obs[key] - to_np(pred_obs[key])).mean())
+                        obs_error = np.mean(obs_error)
+                    except:
+                        continue
+                obs_errors.append(obs_error)
+            obs_errors = np.array(obs_errors)
+            metrics.update({
+                f"agent/errors/dynamics_mse_{num_step:04}_step": obs_errors.mean(),
+                f"agent/errors/dynamics_mse_std_{num_step:04}_step": obs_errors.std(),
+                f"agent/errors/dynamics_mse_max_{num_step:04}_step": obs_errors.max(),
+                f"agent/errors/dynamics_mse_min_{num_step:04}_step": obs_errors.min(),
+            })
+        return metrics
 
     def _imagine(self, start, policy, horizon, repeats=None):
         dynamics = self._world_model.dynamics

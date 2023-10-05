@@ -4,7 +4,7 @@ import os
 import pathlib
 import sys
 
-os.environ["MUJOCO_GL"] = "osmesa"
+os.environ["MUJOCO_GL"] = "egl"
 
 import numpy as np
 import ruamel.yaml as yaml
@@ -180,6 +180,10 @@ def make_dataset(episodes, config):
     dataset = tools.from_generator(generator, config.batch_size)
     return dataset
 
+def make_eval_dataset(episodes, config):
+    generator = tools.sample_episodes(episodes, config.eval_batch_length)
+    dataset = tools.from_generator(generator, config.eval_batch_size)
+    return dataset
 
 def make_env(config, mode):
     suite, task = config.task.split("_", 1)
@@ -259,7 +263,8 @@ def main(config):
     config.evaldir.mkdir(parents=True, exist_ok=True)
     step = count_steps(config.traindir)
     # step in logger is environmental step
-    logger = tools.Logger(logdir, config.action_repeat * step)
+    # logger = tools.Logger(logdir, config.action_repeat * step)
+    logger = tools.WandBLogger(logdir, config.action_repeat * step, config.group, config)
 
     print("Create envs.")
     if config.offline_traindir:
@@ -320,7 +325,7 @@ def main(config):
 
     print("Simulate agent.")
     train_dataset = make_dataset(train_eps, config)
-    eval_dataset = make_dataset(eval_eps, config)
+    eval_dataset = make_eval_dataset(eval_eps, config)
     agent = Dreamer(
         train_envs[0].observation_space,
         train_envs[0].action_space,
@@ -351,6 +356,16 @@ def main(config):
             if config.video_pred_log:
                 video_pred = agent._wm.video_pred(next(eval_dataset))
                 logger.video("eval_openl", to_np(video_pred))
+
+            if config.error_pred_log:
+                data = next(eval_dataset)
+                error_metrics, post = agent._wm.compute_traj_errors(data)
+                agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, horizon=config.eval_batch_length)
+                for key, val in error_metrics.items():
+                    logger.scalar(key, float(val))
+                for key, val in agent_error_metrics.items():
+                    logger.scalar(key, float(val))
+
         print("Start training.")
         state = tools.simulate(
             agent,

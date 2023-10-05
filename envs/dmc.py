@@ -7,8 +7,9 @@ class DeepMindControl:
 
     def __init__(self, name, action_repeat=1, size=(64, 64), camera=None, seed=0):
         domain, task = name.split("_", 1)
-        if domain == "cup":  # Only domain with multiple words.
+        if domain == "ball":  # Only domain with multiple words.
             domain = "ball_in_cup"
+            task = 'catch'
         if isinstance(domain, str):
             from dm_control import suite
 
@@ -20,6 +21,8 @@ class DeepMindControl:
         else:
             assert task is None
             self._env = domain()
+        self.domain = domain
+        self.task = task
         self._action_repeat = action_repeat
         self._size = size
         if camera is None:
@@ -43,6 +46,28 @@ class DeepMindControl:
     def action_space(self):
         spec = self._env.action_spec()
         return gym.spaces.Box(spec.minimum, spec.maximum, dtype=np.float32)
+
+    def obs_to_state(self, obs):
+        if self.domain == 'ball_in_cup':
+            state = np.concatenate([obs['position'], obs['velocity']])
+        elif self.domain == 'cartpole':
+            magnitude = np.sqrt(obs['position'][1] ** 2 + obs['position'][2] ** 2)
+            angle = np.arctan2(obs['position'][2] / magnitude, obs['position'][1] / magnitude)
+            if angle < 0:
+                angle += 2 * np.pi
+            state = np.array([obs['position'][0], angle, obs['velocity'][0], obs['velocity'][1]])
+        elif self.domain == 'hopper':
+            state = np.concatenate([np.array([0.0]), obs['position'], obs['velocity']])
+        elif self.domain == 'cheetah':
+            state = np.concatenate([np.array([0.0]), obs['position'], obs['velocity']])
+        else:
+            raise NotImplementedError
+
+        return state
+
+    def set_state(self, obs):
+        state = self.obs_to_state(obs)
+        self._env.physics.set_state(state)
 
     def step(self, action):
         assert np.isfinite(action).all(), action

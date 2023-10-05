@@ -9,6 +9,7 @@ import time
 import random
 
 import numpy as np
+import wandb
 
 import torch
 from torch import nn
@@ -52,6 +53,98 @@ class TimeRecording:
         self._nd.record()
         torch.cuda.synchronize()
         print(self._comment, self._st.elapsed_time(self._nd) / 1000)
+
+
+class WandBLogger:
+    def __init__(self, logdir, step, group, config):
+        wandb.init(entity="a2i", project="diffusion_world_models", group=group, config=config)
+        self._logdir = logdir
+        self._last_step = None
+        self._last_time = None
+        self._scalars = {}
+        self._images = {}
+        self._videos = {}
+        self.step = step
+
+    def scalar(self, name, value):
+        self._scalars[name] = float(value)
+
+    def image(self, name, value):
+        self._images[name] = np.array(value)
+
+    def video(self, name, value):
+        self._videos[name] = np.array(value)
+
+    def log_scalar_dict(self, d, prefix='', step=None):
+        """Logs all entries from a dict of scalars. Optionally can prefix all keys in dict before logging."""
+        if prefix: d = prefix_dict(d, prefix + '_')
+        wandb.log(d) if step is None else wandb.log(d, step=step)
+
+    def log_scalar(self, v, k, step=None, phase=''):
+        if phase:
+            k = phase + '/' + k
+        self.log_scalar_dict({k: v}, step=step)
+
+    def log_images(self, images, name, step=None, phase=''):
+        if phase:
+            name = phase + '/' + name
+        if (isinstance(images, np.ndarray) and len(images.shape) ==4) or \
+                isinstance(images, list):
+            indices = np.random.permutation(len(images))[:self.n_logged_samples]
+            # for img in images:
+            wandb.log({name: [wandb.Image(images[i]) for i in indices]}, step=step)
+        else:
+            wandb.log({name: [wandb.Image(images)]}, step=step)
+
+    def log_videos(self, vids, name, step=None, fps=20):
+        """Logs videos to WandB in mp4 format.
+        Assumes list of numpy arrays as input with [time, channels, height, width]."""
+        assert len(vids[0].shape) == 4 and vids[0].shape[1] == 3
+        assert isinstance(vids[0], np.ndarray)
+        if vids[0].max() <= 1.0: vids = [np.asarray(vid * 255.0, dtype=np.uint8) for vid in vids]
+        log_dict = {name: [wandb.Video(vid, fps=fps, format="mp4") for vid in vids]}
+        wandb.log(log_dict) if step is None else wandb.log(log_dict, step=step)
+
+    def write(self, fps=False, step=False):
+        if not step:
+            step = self.step
+        scalars = list(self._scalars.items())
+        if fps:
+            scalars.append(("fps", self._compute_fps(step)))
+        print(f"[{step}]", " / ".join(f"{k} {v:.1f}" for k, v in scalars))
+        with (self._logdir / "metrics.jsonl").open("a") as f:
+            f.write(json.dumps({"step": step, **dict(scalars)}) + "\n")
+        for name, value in scalars:
+            self.log_scalar(value, name, step)
+            # if "/" not in name:
+            #     self.log_scalar(value, name, step)
+            # else:
+            #     name = name.split('/')[1]
+            #     self.log_scalar(value, name, step)
+        for name, value in self._images.items():
+            self.log_images(value, name, step=step)
+        for name, value in self._videos.items():
+            name = name if isinstance(name, str) else name.decode("utf-8")
+            if np.issubdtype(value.dtype, np.floating):
+                value = np.clip(255 * value, 0, 255).astype(np.uint8)
+            B, T, H, W, C = value.shape
+            value = value.transpose(1, 4, 2, 0, 3).reshape((1, T, C, H, B * W))
+            self.log_videos(value, name, step=step, fps=16)
+
+        self._scalars = {}
+        self._images = {}
+        self._videos = {}
+
+    def _compute_fps(self, step):
+        if self._last_step is None:
+            self._last_time = time.time()
+            self._last_step = step
+            return 0
+        steps = step - self._last_step
+        duration = time.time() - self._last_time
+        self._last_time += duration
+        self._last_step = step
+        return steps / duration
 
 
 class Logger:
@@ -486,8 +579,8 @@ class DiscDist:
         above = torch.clip(above, 0, len(self.buckets) - 1)
         equal = below == above
 
-        dist_to_below = torch.where(equal, 1, torch.abs(self.buckets[below] - x))
-        dist_to_above = torch.where(equal, 1, torch.abs(self.buckets[above] - x))
+        dist_to_below = torch.where(equal, torch.ones_like(x), torch.abs(self.buckets[below] - x))
+        dist_to_above = torch.where(equal, torch.ones_like(x), torch.abs(self.buckets[above] - x))
         total = dist_to_below + dist_to_above
         weight_below = dist_to_above / total
         weight_above = dist_to_below / total
@@ -545,10 +638,10 @@ class SymlogDist:
         assert self._mode.shape == value.shape
         if self._dist == "mse":
             distance = (self._mode - symlog(value)) ** 2.0
-            distance = torch.where(distance < self._tol, 0, distance)
+            distance = torch.where(distance < self._tol, torch.zeros_like(distance), distance)
         elif self._dist == "abs":
             distance = torch.abs(self._mode - symlog(value))
-            distance = torch.where(distance < self._tol, 0, distance)
+            distance = torch.where(distance < self._tol, torch.zeros_like(distance), distance)
         else:
             raise NotImplementedError(self._dist)
         if self._agg == "mean":
