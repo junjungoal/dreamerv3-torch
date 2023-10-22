@@ -194,6 +194,9 @@ def make_env(config, mode):
             task, config.action_repeat, config.size, seed=config.seed
         )
         env = wrappers.NormalizeActions(env)
+    elif suite == 'gym':
+        from envs.gym import Gym
+        env = Gym(task, config.action_repeat, config.size, seed=config.seed)
     elif suite == "atari":
         import envs.atari as atari
 

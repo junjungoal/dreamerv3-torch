@@ -144,6 +144,15 @@ dmc_vision:
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
 
+gym_proprio:
+  steps: 5e5
+  action_repeat: 1
+  envs: 1
+  train_ratio: 512
+  video_pred_log: false
+  encoder: {mlp_keys: '.*', cnn_keys: '$^'}
+  decoder: {mlp_keys: '.*', cnn_keys: '$^'}
+
 crafter:
   task: crafter_reward
   step: 1e6
