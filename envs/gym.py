@@ -15,13 +15,7 @@ class Gym:
     @property
     def observation_space(self):
         spaces = {}
-        for key, value in self._env.observation_spec().items():
-            if len(value.shape) == 0:
-                shape = (1,)
-            else:
-                shape = value.shape
-
-            spaces[key] = gym.spaces.Box(-np.inf, np.inf, shape, dtype=np.float32)
+        spaces['states'] = self._env.observation_space
         spaces["image"] = gym.spaces.Box(0, 255, self._size + (3,), dtype=np.uint8)
         return gym.spaces.Dict(spaces)
 
@@ -35,7 +29,6 @@ class Gym:
     def step(self, action):
         sim_state = self._env.sim.get_state()
         observation, reward, termination, truncation, info = self._env.step(action)
-        reward = np.array([reward])
         next_sim_state = self._env.sim.get_state()
         info.update({"next_sim_state": self.sim_state_to_array(next_sim_state),
                 "sim_state": self.sim_state_to_array(sim_state)
@@ -51,7 +44,7 @@ class Gym:
         observation, _ = self._env.reset()
         obs = {}
         obs['states'] = observation
-        obs['is_terminal'] = True
+        obs['is_terminal'] = False
         obs['is_first'] = True
         obs['image'] = cv2.resize(self._env.render(), self._size)
         return obs

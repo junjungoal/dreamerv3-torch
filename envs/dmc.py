@@ -94,6 +94,8 @@ class DeepMindControl:
         obs["image"] = self.render()
         obs["is_terminal"] = False if time_step.first() else time_step.discount == 0
         obs["is_first"] = time_step.first()
+        import pdb
+        pdb.set_trace()
         return obs
 
     def render(self, *args, **kwargs):
