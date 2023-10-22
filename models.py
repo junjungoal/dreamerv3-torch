@@ -443,7 +443,7 @@ class ImagBehavior(nn.Module):
         return imag_feat, imag_state, imag_action, weights, metrics
 
 
-    def compute_traj_errors(self, env, start, horizon, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+    def compute_traj_errors(self, env, start, data, horizon, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
         max_eval = 128
         with torch.cuda.amp.autocast(self._use_amp):
             imag_feat, imag_state, imag_action = self._imagine(
@@ -467,12 +467,12 @@ class ImagBehavior(nn.Module):
                 continue
 
             obs_errors = []
-            for obs, action in zip(recon_obs, imag_action):
+            for obs, action, sim_state in zip(recon_obs, imag_action, data['sim_state']):
                 obs = dictlist2listdict(obs)
                 for i in range(0, horizon - num_step, num_step):
                     try:
                         env.reset()()
-                        env.set_state(map2np(obs[i]))
+                        env.set_state(map2np(obs[i]), sim_state[i])
                         for j in range(num_step):
                             act = to_np(action[i+j])
                             gt_obs, _, _, _ = env.step({'action': act})()

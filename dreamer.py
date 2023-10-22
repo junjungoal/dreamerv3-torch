@@ -363,7 +363,7 @@ def main(config):
             if config.error_pred_log:
                 data = next(eval_dataset)
                 error_metrics, post = agent._wm.compute_traj_errors(data)
-                agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, horizon=config.eval_batch_length)
+                agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, horizon=config.eval_batch_length)
                 for key, val in error_metrics.items():
                     logger.scalar(key, float(val))
                 for key, val in agent_error_metrics.items():
