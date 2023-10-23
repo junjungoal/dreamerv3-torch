@@ -1,0 +1,100 @@
+/home/mans4401/.zshrc: line 27: setopt: command not found
+/home/mans4401/.zshrc: line 28: setopt: command not found
+/home/mans4401/.zshrc: line 31: autoload: command not found
+/home/mans4401/.zshrc: line 32: zstyle: command not found
+/home/mans4401/.zshrc: line 34: zstyle: command not found
+/home/mans4401/.zshrc: line 37: zstyle: command not found
+/home/mans4401/.zshrc: line 39: autoload: command not found
+/home/mans4401/.zshrc: line 39: compinit: command not found
+/home/mans4401/.zshrc: line 40: setopt: command not found
+/home/mans4401/.zshrc: line 41: setopt: command not found
+/home/mans4401/.zshrc: line 42: setopt: command not found
+/home/mans4401/.zshrc: line 43: setopt: command not found
+/home/mans4401/.zshrc: line 45: setopt: command not found
+/home/mans4401/.zshrc: line 47: autoload: command not found
+/home/mans4401/.zshrc: line 48: zle: command not found
+/home/mans4401/.zshrc: line 49: zle: command not found
+/home/mans4401/.zshrc: line 50: bindkey: command not found
+/home/mans4401/.zshrc: line 51: bindkey: command not found
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 35:  ! ${+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 38:  ! ${+ZSH_AUTOSUGGEST_ORIGINAL_WIDGET_PREFIX} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 42:  ! ${+ZSH_AUTOSUGGEST_STRATEGY} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 45:  ! ${+ZSH_AUTOSUGGEST_CLEAR_WIDGETS} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 48:  ! ${+ZSH_AUTOSUGGEST_ACCEPT_WIDGETS} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 51:  ! ${+ZSH_AUTOSUGGEST_EXECUTE_WIDGETS} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 54:  ! ${+ZSH_AUTOSUGGEST_PARTIAL_ACCEPT_WIDGETS} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 57:  ! ${+ZSH_AUTOSUGGEST_IGNORE_WIDGETS} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 60:  ! ${+ZSH_AUTOSUGGEST_COMPLETIONS_PTY_NAME} : bad substitution
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 95: syntax error near unexpected token `('
+/home/mans4401/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh: line 95: `		user:_zsh_autosuggest_(bound|orig)_*)'
+/home/mans4401/.zshrc: line 56: autoload: command not found
+/home/mans4401/.zshrc: line 57: zle: command not found
+/home/mans4401/.zshrc: line 58: zle: command not found
+/home/mans4401/.zshrc: line 59: bindkey: command not found
+/home/mans4401/.zshrc: line 60: bindkey: command not found
+/home/mans4401/.zshrc: line 61: zstyle: command not found
+/home/mans4401/.zshrc: line 97: unexpected argument `(' to conditional binary operator
+/home/mans4401/.zshrc: line 97: syntax error near `("'
+/home/mans4401/.zshrc: line 97: `gitDirty() { [[ $(git status 2> /dev/null | grep -o '\w\+' | tail -n1) != ("clean"|"") ]] && echo "*" }'
+
+CommandNotFoundError: Your shell has not been properly configured to use 'conda activate'.
+To initialize your shell, run
+
+    $ conda init <SHELL_NAME>
+
+Currently supported shells are:
+  - bash
+  - fish
+  - tcsh
+  - xonsh
+  - zsh
+  - powershell
+
+See 'conda init --help' for more information and options.
+
+IMPORTANT: You may need to close and restart your shell after running 'conda init'.
+
+
+
+wandb: Currently logged in as: junyamada107 (a2i). Use `wandb login --relogin` to force relogin
+wandb: - Waiting for wandb.init()...wandb: \ Waiting for wandb.init()...wandb: wandb version 0.15.12 is available!  To upgrade, please run:
+wandb:  $ pip install wandb --upgrade
+wandb: Tracking run with wandb version 0.15.7
+wandb: Run data is saved locally in /data/engs-a2i/mans4401/projects/dreamerv3-torch/wandb/run-20231017_193324-huikk7er
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run solar-river-3702
+wandb: ⭐️ View project at https://wandb.ai/a2i/diffusion_world_models
+wandb: 🚀 View run at https://wandb.ai/a2i/diffusion_world_models/runs/huikk7er
+wandb: Waiting for W&B process to finish... (failed 1). Press Control-C to abort syncing.
+wandb: - 0.021 MB of 0.021 MB uploaded (0.000 MB deduped)wandb: \ 0.021 MB of 0.021 MB uploaded (0.000 MB deduped)wandb: | 0.021 MB of 0.021 MB uploaded (0.000 MB deduped)wandb: / 0.021 MB of 0.021 MB uploaded (0.000 MB deduped)wandb: - 0.021 MB of 0.021 MB uploaded (0.000 MB deduped)wandb: \ 0.021 MB of 0.021 MB uploaded (0.000 MB deduped)wandb: | 0.021 MB of 0.021 MB uploaded (0.000 MB deduped)wandb: 🚀 View run solar-river-3702 at: https://wandb.ai/a2i/diffusion_world_models/runs/huikk7er
+wandb: ️⚡ View job at https://wandb.ai/a2i/diffusion_world_models/jobs/QXJ0aWZhY3RDb2xsZWN0aW9uOjk4NDM1NTQ4/version_details/v84
+wandb: Synced 7 W&B file(s), 0 media file(s), 3 artifact file(s) and 1 other file(s)
+wandb: Find logs at: ./wandb/run-20231017_193324-huikk7er/logs
+Traceback (most recent call last):
+  File "dreamer.py", line 411, in <module>
+    main(parser.parse_args(remaining))
+  File "dreamer.py", line 281, in main
+    train_envs = [make("train") for _ in range(config.envs)]
+  File "dreamer.py", line 281, in <listcomp>
+    train_envs = [make("train") for _ in range(config.envs)]
+  File "dreamer.py", line 280, in <lambda>
+    make = lambda mode: make_env(config, mode)
+  File "dreamer.py", line 193, in make_env
+    env = dmc.DeepMindControl(
+  File "/data/engs-a2i/mans4401/projects/dreamerv3-torch/envs/dmc.py", line 14, in __init__
+    from dm_control import suite
+  File "/data/engs-robot-learning/mans4401/miniconda3/envs/diffusion-wm/lib/python3.8/site-packages/dm_control/suite/__init__.py", line 24, in <module>
+    from dm_control.suite import acrobot
+  File "/data/engs-robot-learning/mans4401/miniconda3/envs/diffusion-wm/lib/python3.8/site-packages/dm_control/suite/acrobot.py", line 20, in <module>
+    from dm_control import mujoco
+  File "/data/engs-robot-learning/mans4401/miniconda3/envs/diffusion-wm/lib/python3.8/site-packages/dm_control/mujoco/__init__.py", line 18, in <module>
+    from dm_control.mujoco.engine import action_spec
+  File "/data/engs-robot-learning/mans4401/miniconda3/envs/diffusion-wm/lib/python3.8/site-packages/dm_control/mujoco/engine.py", line 41, in <module>
+    from dm_control import _render
+  File "/data/engs-robot-learning/mans4401/miniconda3/envs/diffusion-wm/lib/python3.8/site-packages/dm_control/_render/__init__.py", line 86, in <module>
+    Renderer = import_func()
+  File "/data/engs-robot-learning/mans4401/miniconda3/envs/diffusion-wm/lib/python3.8/site-packages/dm_control/_render/__init__.py", line 36, in _import_egl
+    from dm_control._render.pyopengl.egl_renderer import EGLContext
+  File "/data/engs-robot-learning/mans4401/miniconda3/envs/diffusion-wm/lib/python3.8/site-packages/dm_control/_render/pyopengl/egl_renderer.py", line 75, in <module>
+    raise ImportError('Cannot initialize a headless EGL display.')
+ImportError: Cannot initialize a headless EGL display.
