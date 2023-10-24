@@ -267,7 +267,9 @@ class WorldModel(nn.Module):
             embed, data["action"], data["is_first"]
         )
         init = {k: v[:, 0] for k, v in states.items()}
-        prior = self.dynamics.imagine(data["action"], init)
+        prior = self.dynamics.imagine(data["action"][:, 1:], init)
+        for key in prior.keys():
+            prior = torch.cat([init[key].unsqueeze(1), prior[key]], dim=1)
         recon = self.heads["decoder"](self.dynamics.get_feat(prior))
         recon_obs = {key: recon[key].mode() for key in recon.keys()}
 
