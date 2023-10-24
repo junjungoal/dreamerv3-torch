@@ -456,11 +456,12 @@ class ImagBehavior(nn.Module):
     def compute_traj_errors(self, env, start, data, horizon, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
         env.reset()()
         max_eval = 128
+        start = {k: v[:, 0:1] for k, v in start.items()}
+
         with torch.cuda.amp.autocast(self._use_amp):
             imag_feat, imag_state, imag_action = self._imagine(
                 start, self.actor, horizon, None
             )
-
             recon = self._world_model.heads["decoder"](imag_feat)
         recon_obs = {key: recon[key].mode().permute((1, 0, 2)) for key in recon.keys()}
         keys = list(recon_obs.keys())
@@ -487,7 +488,7 @@ class ImagBehavior(nn.Module):
                     act = to_np(action[init_t+j])
                     gt_obs, _, term, _ = env.step({'action': act})()
 
-                obs_errors.append(np.square(gt_obs['states'] - to_np(obs[init_t+num_step])).mean())
+                obs_errors.append(np.square(gt_obs['states'] - to_np(obs[init_t+num_step-1])).mean())
             obs_errors = np.array(obs_errors)
             if len(obs_errors) == 0:
                 continue
