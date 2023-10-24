@@ -289,6 +289,10 @@ def simulate(
                 transition["action"] = a
             transition["reward"] = r
             transition["discount"] = info.get("discount", np.array(1 - float(d)))
+            if 'sim_state' in info.keys():
+                transition['sim_state'] = info['sim_state']
+            if 'next_sim_state' in info.keys():
+                transition['next_sim_state'] = info['next_sim_state']
             add_to_cache(cache, env.id, transition)
 
         if done.any():

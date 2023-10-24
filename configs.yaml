@@ -76,7 +76,7 @@ defaults:
   batch_length: 64
   eval_batch_size: 128
   eval_batch_length: 16
-  train_ratio: 512
+  train_ratio: 256
   pretrain: 100
   model_lr: 1e-4
   opt_eps: 1e-8
@@ -154,6 +154,26 @@ dmc_vision:
   video_pred_log: true
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
+
+gym_proprio:
+  steps: 5e5
+  action_repeat: 1
+  envs: 1
+  train_ratio: 256
+  video_pred_log: false
+  encoder: {mlp_keys: '.*', cnn_keys: '$^'}
+  decoder: {mlp_keys: '.*', cnn_keys: '$^'}
+
+gym_proprio_reinforce_no_grad:
+  steps: 5e5
+  action_repeat: 1
+  envs: 1
+  train_ratio: 256
+  video_pred_log: false
+  encoder: {mlp_keys: '.*', cnn_keys: '$^'}
+  decoder: {mlp_keys: '.*', cnn_keys: '$^'}
+  imag_gradient: 'reinforce'
+  behavior_stop_grad: False
 
 crafter:
   task: crafter_reward

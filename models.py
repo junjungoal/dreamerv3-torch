@@ -259,7 +259,8 @@ class WorldModel(nn.Module):
 
         return torch.cat([truth, model, error], 2)
 
-    def compute_traj_errors(self, data, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+    def compute_traj_errors(self, env, data, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+        env.reset()()
         data = self.preprocess(data)
         embed = self.encoder(data)
         states, post = self.dynamics.observe(
@@ -277,16 +278,27 @@ class WorldModel(nn.Module):
 
         metrics = {}
         for num_step in num_steps:
-            if num_step > data['action'].shape[1]:
+            if num_step > max_steps:
                 continue
 
             obs_errors = []
             # for i in range(0, data['action'].shape[1] - num_step - 1, num_step):
-            for key in recon_obs.keys():
-                obs_error = torch.square(data[key][:, num_step] - recon_obs[key][:, num_step]).mean().detach().cpu().numpy()
+            for obs, action, sim_state in zip(recon_obs, data['action'], data['sim_state']):
+                init_t = 0
+                env.reset()()
+                env.set_state(obs[init_t], to_np(sim_state)[init_t])
+                for i in range(num_step):
+                    act = to_np(action[init_t+i])
+                    gt_obs, _, term, _ = env.step({'action': act})()
+                obs_error = []
+                for key in recon_obs.keys():
+                    obs_error.append(np.square(gt_obs[key] - recon_obs[key][:, init_t+num_step].detach().cpu().numpy()).mean())
+                obs_error = np.mean(obs_error)
                 obs_errors.append(obs_error)
 
             obs_errors = np.array(obs_errors)
+            if len(obs_errors) == 0:
+                continue
             metrics.update({
                 f"rssm/errors/dynamics_mse_{num_step:04}_step": obs_errors.mean(),
                 f"rssm/errors/dynamics_mse_std_{num_step:04}_step": obs_errors.std(),
@@ -443,7 +455,8 @@ class ImagBehavior(nn.Module):
         return imag_feat, imag_state, imag_action, weights, metrics
 
 
-    def compute_traj_errors(self, env, start, horizon, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+    def compute_traj_errors(self, env, start, data, horizon, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+        env.reset()()
         max_eval = 128
         with torch.cuda.amp.autocast(self._use_amp):
             imag_feat, imag_state, imag_action = self._imagine(
@@ -467,25 +480,24 @@ class ImagBehavior(nn.Module):
                 continue
 
             obs_errors = []
-            for obs, action in zip(recon_obs, imag_action):
+            for obs, action, sim_state in zip(recon_obs, imag_action, data['sim_state']):
                 obs = dictlist2listdict(obs)
-                for i in range(0, horizon - num_step, num_step):
-                    try:
-                        env.reset()()
-                        env.set_state(map2np(obs[i]))
-                        for j in range(num_step):
-                            act = to_np(action[i+j])
-                            gt_obs, _, _, _ = env.step({'action': act})()
+                init_t = 0
+                env.reset()()
+                env.set_state(map2np(obs[init_t]), sim_state[init_t])
+                for j in range(num_step):
+                    act = to_np(action[init_t+j])
+                    gt_obs, _, term, _ = env.step({'action': act})()
 
-                        pred_obs = obs[i+num_step]
-                        obs_error = []
-                        for key in pred_obs.keys():
-                            obs_error.append(np.square(gt_obs[key] - to_np(pred_obs[key])).mean())
-                        obs_error = np.mean(obs_error)
-                    except:
-                        continue
+                pred_obs = obs[init_t+num_step]
+                obs_error = []
+                for key in pred_obs.keys():
+                    obs_error.append(np.square(gt_obs[key] - to_np(pred_obs[key])).mean())
+                obs_error = np.mean(obs_error)
                 obs_errors.append(obs_error)
             obs_errors = np.array(obs_errors)
+            if len(obs_errors) == 0:
+                continue
             metrics.update({
                 f"agent/errors/dynamics_mse_{num_step:04}_step": obs_errors.mean(),
                 f"agent/errors/dynamics_mse_std_{num_step:04}_step": obs_errors.std(),
