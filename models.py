@@ -285,18 +285,14 @@ class WorldModel(nn.Module):
 
             obs_errors = []
             # for i in range(0, data['action'].shape[1] - num_step - 1, num_step):
-            for obs, action, sim_state in zip(recon_obs, data['action'], data['sim_state']):
+            for obs, action, sim_state in zip(recon_obs['states'], data['action'], data['sim_state']):
                 init_t = 0
                 env.reset()()
                 env.set_state(obs[init_t], to_np(sim_state)[init_t])
                 for i in range(num_step):
                     act = to_np(action[init_t+i])
                     gt_obs, _, term, _ = env.step({'action': act})()
-                obs_error = []
-                for key in recon_obs.keys():
-                    obs_error.append(np.square(gt_obs[key] - recon_obs[key][:, init_t+num_step].detach().cpu().numpy()).mean())
-                obs_error = np.mean(obs_error)
-                obs_errors.append(obs_error)
+                obs_errors.append(np.square(gt_obs['states'] - obs[init_t+num_step].detach().cpu().numpy()).mean())
 
             obs_errors = np.array(obs_errors)
             if len(obs_errors) == 0:
@@ -483,7 +479,7 @@ class ImagBehavior(nn.Module):
 
             obs_errors = []
             for obs, action, sim_state in zip(recon_obs, imag_action, data['sim_state']):
-                obs = dictlist2listdict(obs)
+                obs = obs['states']
                 init_t = 0
                 env.reset()()
                 env.set_state(map2np(obs[init_t]), sim_state[init_t])
@@ -491,12 +487,7 @@ class ImagBehavior(nn.Module):
                     act = to_np(action[init_t+j])
                     gt_obs, _, term, _ = env.step({'action': act})()
 
-                pred_obs = obs[init_t+num_step]
-                obs_error = []
-                for key in pred_obs.keys():
-                    obs_error.append(np.square(gt_obs[key] - to_np(pred_obs[key])).mean())
-                obs_error = np.mean(obs_error)
-                obs_errors.append(obs_error)
+                obs_errors.append(np.square(gt_obs['states'] - to_np(obs[init_t+num_step])).mean())
             obs_errors = np.array(obs_errors)
             if len(obs_errors) == 0:
                 continue
