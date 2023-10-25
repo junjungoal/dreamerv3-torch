@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --array=0-2
 #SBATCH --partition=short
-#SBATC --reservation=a2i202310
+#SBATCH--reservation=a2i202310
 #SBATCH --mem=20G
 ## output files
 #SBATCH --output=/data/engs-a2i/mans4401/projects/dreamerv3-torch/slurm_logs/%x.%j.out
