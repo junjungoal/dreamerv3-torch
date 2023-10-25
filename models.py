@@ -493,7 +493,11 @@ class ImagBehavior(nn.Module):
                 obs = obs['states']
                 init_t = 0
                 env.reset()()
-                env.set_state(map2np(obs[init_t]), sim_state[init_t])
+                if torch.is_tensor(sim_state[init_t]):
+                    init_sim_state = to_np(sim_state[init_t])
+                else:
+                    init_sim_state = sim_state[init_t]
+                env.set_state(map2np(obs[init_t]), init_sim_state)
                 gt_obs, _, term, _  = env.step({'action': real_act[0].cpu().numpy()})()
                 for j in range(num_step - 1):
                     act = to_np(action[init_t+j])
