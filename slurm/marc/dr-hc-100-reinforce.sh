@@ -26,4 +26,4 @@ TASK=HalfCheetah-v3
 GROUP=dreamer-long-horizon-reinforce
 H=100
 
-WANDB__SERVICE_WAIT=300 python3 dreamer.py --configs gym_proprio_reinforce_no_grad --eval_batch_size 50 --task gym_$TASK --logdir /data/engs-a2i/pemb5572/dreamerv3/$TASK/$GROUP/$H/$SEED --seed $SEED --group $GROUP --eval_batch_length $H --imag_horizon $H
+WANDB__SERVICE_WAIT=300 python3 dreamer.py --configs gym_proprio_reinforce_no_grad --batch_size 8 --eval_batch_size 50 --task gym_$TASK --logdir /data/engs-a2i/pemb5572/dreamerv3/$TASK/$GROUP/$H/$SEED --seed $SEED --group $GROUP --eval_batch_length $H --imag_horizon $H
