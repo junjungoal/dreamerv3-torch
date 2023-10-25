@@ -138,3 +138,4 @@ dmypy.json
 .vscode/*
 wandb
 slurm_logs
+logs

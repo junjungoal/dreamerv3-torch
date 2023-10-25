@@ -253,6 +253,7 @@ def simulate(
                 t["reward"] = 0.0
                 t["discount"] = 1.0
                 # initial state should be added to cache
+                t['sim_state'] = envs[index].get_sim_state()
                 add_to_cache(cache, envs[index].id, t)
                 # replace obs with done by initial state
                 obs[index] = result
@@ -289,10 +290,11 @@ def simulate(
                 transition["action"] = a
             transition["reward"] = r
             transition["discount"] = info.get("discount", np.array(1 - float(d)))
-            if 'sim_state' in info.keys():
-                transition['sim_state'] = info['sim_state']
-            if 'next_sim_state' in info.keys():
-                transition['next_sim_state'] = info['next_sim_state']
+            # if 'sim_state' in info.keys():
+            #     transition['sim_state'] = info['sim_state']
+            # if 'next_sim_state' in info.keys():
+            #     transition['next_sim_state'] = info['next_sim_state']
+            transition['sim_state'] = info['next_sim_state']
             add_to_cache(cache, env.id, transition)
 
         if done.any():

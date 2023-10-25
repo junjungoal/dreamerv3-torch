@@ -42,13 +42,18 @@ class Gym:
         self._env.set_state(sim_state[:len(sim_state)//2], sim_state[len(sim_state)//2:])
 
     def reset(self):
+        info = {}
         observation, _ = self._env.reset()
         obs = {}
         obs['states'] = observation
         obs['is_terminal'] = False
         obs['is_first'] = True
         obs['image'] = cv2.resize(self._env.render(), self._size)
+        sim_state = self._env.sim.get_state()
         return obs
+
+    def get_sim_state(self):
+        return self.sim_state_to_array(self._env.sim.get_state())
     
     def get_terminals(self, states):
         if "Hopper" in self._env.spec.id:
