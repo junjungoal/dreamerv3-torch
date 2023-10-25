@@ -456,14 +456,24 @@ class ImagBehavior(nn.Module):
     def compute_traj_errors(self, env, start, data, horizon, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
         env.reset()()
         max_eval = 128
-        start = {k: v[:, 0:1] for k, v in start.items()}
 
+        env.reset()()
+        data = self._world_model.preprocess(data)
+        embed = self._world_model.encoder(data)
+        states, post = self._world_model.dynamics.observe(
+            embed, data["action"], data["is_first"]
+        )
+        init = {k: v[:, 0:1] for k, v in states.items()}
+        
         with torch.cuda.amp.autocast(self._use_amp):
             imag_feat, imag_state, imag_action = self._imagine(
-                start, self.actor, horizon, None
+                init, self.actor, horizon, None
             )
+            init_feat = self._world_model.dynamics.get_feat(init)
+            imag_feat = imag_feat.permute((1, 0, 2))
+            imag_feat = torch.cat([init_feat, imag_feat], dim=1)
             recon = self._world_model.heads["decoder"](imag_feat)
-        recon_obs = {key: recon[key].mode().permute((1, 0, 2)) for key in recon.keys()}
+        recon_obs = {key: recon[key].mode() for key in recon.keys()}
         keys = list(recon_obs.keys())
         recon_obs = dictlist2listdict(recon_obs)[:max_eval]
         imag_action = imag_action.permute((1, 0, 2))[:max_eval]
@@ -479,16 +489,17 @@ class ImagBehavior(nn.Module):
                 continue
 
             obs_errors = []
-            for obs, action, sim_state in zip(recon_obs, imag_action, data['sim_state']):
+            for obs, action, sim_state, real_act in zip(recon_obs, imag_action, data['sim_state'], data["action"]):
                 obs = obs['states']
                 init_t = 0
                 env.reset()()
                 env.set_state(map2np(obs[init_t]), sim_state[init_t])
-                for j in range(num_step):
+                gt_obs, _, term, _  = env.step({'action': real_act[0].cpu().numpy()})()
+                for j in range(num_step - 1):
                     act = to_np(action[init_t+j])
                     gt_obs, _, term, _ = env.step({'action': act})()
 
-                obs_errors.append(np.square(gt_obs['states'] - to_np(obs[init_t+num_step-1])).mean())
+                obs_errors.append(np.square(gt_obs['states'] - to_np(obs[init_t+num_step])).mean())
             obs_errors = np.array(obs_errors)
             if len(obs_errors) == 0:
                 continue
