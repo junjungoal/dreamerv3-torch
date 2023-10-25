@@ -18,6 +18,7 @@ module load CUDA/11.7.0
 module load Anaconda3/2022.05
 
 source ~/.bashrc
+cd /home/pemb5572/github/dreamerv3-torch
 conda activate diffusion
 
 SEED=${SLURM_ARRAY_TASK_ID}
