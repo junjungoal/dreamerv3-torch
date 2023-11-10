@@ -78,3 +78,59 @@ class Gym:
             return np.full((states.shape[0], states.shape[1]), False)
         else:
             raise NotImplementedError
+
+
+class DWMBufferToEnv:
+
+    def __init__(self, buffer):
+        self.data_buffer = buffer
+        self.ep_num = None
+        self.step_num = None
+        self.total_steps = 0
+        self.id = ""
+
+    def reset(self):
+        if self.ep_num is None:
+            self.ep_num = 0
+        else:
+            self.ep_num += 1
+        self.step_num = 0
+        self.total_steps += 1
+        self.id = str(self.ep_num)
+        print("Episode Number: ", self.ep_num, "Total Steps: ", self.total_steps)
+
+        self.current_path_length = self.data_buffer._dict["path_lengths"][self.ep_num]
+        info = {}
+        observation = self.data_buffer._dict["observations"][self.ep_num][self.step_num]
+        obs = {}
+        obs['states'] = observation
+        obs['is_terminal'] = False
+        obs['is_first'] = True
+        self.current_sim_state = self.data_buffer._dict["sim_states"][self.ep_num][self.step_num]
+        return obs
+    
+    def get_sim_state(self):
+        return self.current_sim_state
+    
+    def step(self, action):
+        sim_state = self.data_buffer._dict["sim_states"][self.ep_num][self.step_num]
+
+        # "step the env"
+        self.step_num += 1
+        self.total_steps += 1
+        info = {}
+        next_sim_state = self.data_buffer._dict["sim_states"][self.ep_num][self.step_num]
+        self.current_sim_state = next_sim_state
+        info.update({"next_sim_state": next_sim_state,
+                "sim_state": sim_state,
+                "action_taken": self.data_buffer._dict["actions"][self.ep_num][self.step_num],
+                })
+        
+        observation = self.data_buffer._dict["observations"][self.ep_num][self.step_num]
+        reward = self.data_buffer._dict["rewards"][self.ep_num][self.step_num][0]
+        termination = bool(self.data_buffer._dict["terminals"][self.ep_num][self.step_num])
+        obs = {'states': observation, 'is_terminal': termination, 'is_first': False}
+
+        if self.step_num == self.current_path_length - 1:
+            termination = True
+        return obs, reward, termination, info

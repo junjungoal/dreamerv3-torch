@@ -228,6 +228,7 @@ def simulate(
     limit=None,
     steps=0,
     episodes=0,
+    env_is_dataset=False,
     state=None,
 ):
     # initialize or unpack simulation state
@@ -245,7 +246,8 @@ def simulate(
         if done.any():
             indices = [index for index, d in enumerate(done) if d]
             results = [envs[i].reset() for i in indices]
-            results = [r() for r in results]
+            if not env_is_dataset:
+                results = [r() for r in results]
             for index, result in zip(indices, results):
                 t = result.copy()
                 t = {k: convert(v) for k, v in t.items()}
@@ -270,8 +272,12 @@ def simulate(
         assert len(action) == len(envs)
         # step envs
         results = [e.step(a) for e, a in zip(envs, action)]
-        results = [r() for r in results]
+        if not env_is_dataset:
+            results = [r() for r in results]
         obs, reward, done = zip(*[p[:3] for p in results])
+        infos = [p[3] for p in results]
+        if env_is_dataset:
+            action = [info['action_taken'] for info in infos]
         obs = list(obs)
         reward = list(reward)
         done = np.stack(done)
@@ -290,10 +296,6 @@ def simulate(
                 transition["action"] = a
             transition["reward"] = r
             transition["discount"] = info.get("discount", np.array(1 - float(d)))
-            # if 'sim_state' in info.keys():
-            #     transition['sim_state'] = info['sim_state']
-            # if 'next_sim_state' in info.keys():
-            #     transition['next_sim_state'] = info['next_sim_state']
             transition['sim_state'] = info['next_sim_state']
             add_to_cache(cache, env.id, transition)
 
@@ -304,7 +306,9 @@ def simulate(
                 save_episodes(directory, {envs[i].id: cache[envs[i].id]})
                 length = len(cache[envs[i].id]["reward"]) - 1
                 score = float(np.array(cache[envs[i].id]["reward"]).sum())
-                video = cache[envs[i].id]["image"]
+
+                if not env_is_dataset:
+                    video = cache[envs[i].id]["image"]
                 # record logs given from environments
                 for key in list(cache[envs[i].id].keys()):
                     if "log_" in key:
@@ -332,7 +336,8 @@ def simulate(
 
                     score = sum(eval_scores) / len(eval_scores)
                     length = sum(eval_lengths) / len(eval_lengths)
-                    logger.video(f"eval_policy", np.array(video)[None])
+                    if not env_is_dataset:
+                        logger.video(f"eval_policy", np.array(video)[None])
 
                     if len(eval_scores) >= episodes and not eval_done:
                         logger.scalar(f"eval_return", score)
@@ -340,6 +345,9 @@ def simulate(
                         logger.scalar(f"eval_episodes", len(eval_scores))
                         logger.write(step=logger.step)
                         eval_done = True
+            if env_is_dataset:
+                if envs[0].ep_num == envs[0].data_buffer._count - 1:
+                    return
     if is_eval:
         # keep only last item for saving memory. this cache is used for video_pred later
         while len(cache) > 1:

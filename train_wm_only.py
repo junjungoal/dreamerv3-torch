@@ -15,6 +15,7 @@ import exploration as expl
 import models
 import tools
 import envs.wrappers as wrappers
+from envs.gym import DWMBufferToEnv
 import dill as pickle
 from parallel import Parallel, Damy
 from dreamer import Dreamer, make_env, make_dataset, make_eval_dataset, count_steps
@@ -61,17 +62,14 @@ def main(config):
         directory = config.evaldir
     eval_eps = tools.load_episodes(directory, limit=1)
     make = lambda mode: make_env(config, mode)
-    train_envs = [make("train") for _ in range(config.envs)]
     eval_envs = [make("eval") for _ in range(config.envs)]
     if config.parallel:
-        train_envs = [Parallel(env, "process") for env in train_envs]
         eval_envs = [Parallel(env, "process") for env in eval_envs]
     else:
-        train_envs = [Damy(env) for env in train_envs]
         eval_envs = [Damy(env) for env in eval_envs]
-    acts = train_envs[0].action_space
+    acts = eval_envs[0].action_space
     config.num_actions = acts.n if hasattr(acts, "n") else acts.shape[0]
-    num_obs = train_envs[0].observation_space["states"].shape[0]
+    num_obs = eval_envs[0].observation_space["states"].shape[0]
     
     # Load actor critic from checkpoint
     print("Num states", num_obs, "Num Actions", config.num_actions)
@@ -87,28 +85,28 @@ def main(config):
         dwm_dataset = pickle.load(f)
     print(f"Loaded dataset from {dataset_path}")    
 
+    train_envs = [DWMBufferToEnv(dwm_dataset.data_buffer)]
+
     state = None
-    if not config.offline_traindir:
-        prefill = max(0, config.prefill - count_steps(config.traindir))
-        print(f"Prefill dataset ({prefill} steps).")
-        if hasattr(acts, "discrete"):
-            random_actor = tools.OneHotDist(
-                torch.zeros(config.num_actions).repeat(config.envs, 1)
-            )
-        else:
-            random_actor = torchd.independent.Independent(
-                torchd.uniform.Uniform(
-                    torch.Tensor(acts.low).repeat(config.envs, 1),
-                    torch.Tensor(acts.high).repeat(config.envs, 1),
-                ),
-                1,
-            )
+    if hasattr(acts, "discrete"):
+        random_actor = tools.OneHotDist(
+            torch.zeros(config.num_actions).repeat(config.envs, 1)
+        )
+    else:
+        random_actor = torchd.independent.Independent(
+            torchd.uniform.Uniform(
+                torch.Tensor(acts.low).repeat(config.envs, 1),
+                torch.Tensor(acts.high).repeat(config.envs, 1),
+            ),
+            1,
+        )
 
-        def random_agent(o, d, s):
-            action = random_actor.sample()
-            logprob = random_actor.log_prob(action)
-            return {"action": action, "logprob": logprob}, None
-
+    def random_agent(o, d, s):
+        action = random_actor.sample()
+        logprob = random_actor.log_prob(action)
+        return {"action": action, "logprob": logprob}, None
+    
+    while True:
         state = tools.simulate(
             random_agent,
             train_envs,
@@ -116,10 +114,12 @@ def main(config):
             config.traindir,
             logger,
             limit=config.dataset_size,
-            steps=prefill,
+            steps=1000000,
+            env_is_dataset=True,
+            state=state,
         )
-        logger.step += prefill * config.action_repeat
-        print(f"Logger: ({logger.step} steps).")
+        if train_envs[0].ep_num >= config.dataset_size:
+            break
 
     print("Simulate agent.")
     train_dataset = make_dataset(train_eps, config)
