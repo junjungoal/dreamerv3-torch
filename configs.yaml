@@ -21,6 +21,8 @@ defaults:
   expl_gifs: False
   video_pred_log: True
   error_pred_log: True
+  load_path: ""
+  load_step: 0
 
   # Environment
   task: 'dmc_walker_walk'

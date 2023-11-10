@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=engs-a2i
 #SBATCH --nodes=1
-#SBATCH --time=96:00:00
+#SBATCH --time=48:00:00
 #SBATCH --gres=gpu:rtx:1
 #SBATCH --cpus-per-task=2
 #SBATCH --array=1-1
@@ -22,8 +22,10 @@ cd /home/pemb5572/github/dreamerv3-torch
 conda activate diffusion
 
 SEED=${SLURM_ARRAY_TASK_ID}
-TASK=Hopper-v3
-GROUP=dreamer-long-horizon-reinforce
-H=64
+TASK=HalfCheetah-v3
+GROUP=dreamer-errors-nov9_datasets
+DATASET=/jmain02/home/J2AD008/wga37/mxr40-wga37/github/diffusion-wm/datasets/test_datasets_nov9/HalfCheetah
+LOAD_STEP=1000000
+H=200
 
-WANDB__SERVICE_WAIT=300 python3 dreamer.py --configs gym_proprio_reinforce_no_grad --task gym_$TASK --logdir /data/engs-a2i/pemb5572/dreamerv3/$TASK/$GROUP/$H/$SEED --seed $SEED --group $GROUP --eval_batch_length $H --imag_horizon $H
+WANDB__SERVICE_WAIT=300 python3 train_wm_only.py --configs gym_proprio --task gym_$TASK --logdir /data/engs-a2i/pemb5572/dreamerv3/$TASK/$GROUP/$H/$SEED --seed $SEED --group $GROUP --eval_batch_length $H --load_path $DATASET --load_step $LOAD_STEP 
