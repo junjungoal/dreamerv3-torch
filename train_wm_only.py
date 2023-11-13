@@ -156,7 +156,7 @@ def main(config):
             # train world model and world model policy
             agent._train(next(train_dataset))
             train_steps += 1
-            print("train_steps", train_steps)
+            
 
         # gather some real episodes under policy
         eval_policy = functools.partial(agent, training=False)
@@ -179,6 +179,7 @@ def main(config):
         for key, val in agent_error_metrics.items():
             logger.scalar(key, float(val))
 
+        print("Train_steps: ", train_steps)
         print("Agent error metrics: ")
         print(agent_error_metrics)
         print("\n\n")
