@@ -37,10 +37,10 @@ defaults:
 
   # Model
   dyn_cell: 'gru_layer_norm'
-  dyn_hidden: 512
-  dyn_deter: 512
-  dyn_stoch: 32
-  dyn_discrete: 32
+  dyn_hidden: 128
+  dyn_deter: 128
+  dyn_stoch: 16
+  dyn_discrete: 16
   dyn_input_layers: 1
   dyn_output_layers: 1
   dyn_rec_depth: 1

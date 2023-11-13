@@ -106,81 +106,82 @@ def main(config):
         logprob = random_actor.log_prob(action)
         return {"action": action, "logprob": logprob}, None
     
-    while True:
-        state = tools.simulate(
-            random_agent,
-            train_envs,
-            train_eps,
-            config.traindir,
-            logger,
-            limit=config.dataset_size,
-            steps=1000000,
-            env_is_dataset=True,
-            state=state,
-        )
-        if train_envs[0].ep_num >= config.dataset_size:
-            break
+    print("Adding dataset to replay buffer...")
+    episodes = 10 # TODO: REMOVE
+    state = tools.simulate(
+        random_agent,
+        train_envs,
+        train_eps,
+        config.traindir,
+        logger,
+        limit=config.dataset_size,
+        # steps=config.load_step,
+        # episodes=train_envs[0].data_buffer._count,
+        episodes=episodes,
+        env_is_dataset=True,
+        state=state,
+    )
+    print("Done.")
 
     print("Simulate agent.")
     train_dataset = make_dataset(train_eps, config)
     eval_dataset = make_eval_dataset(eval_eps, config)
     agent = Dreamer(
-        train_envs[0].observation_space,
-        train_envs[0].action_space,
+        eval_envs[0].observation_space,
+        eval_envs[0].action_space,
         config,
         logger,
         train_dataset,
     ).to(config.device)
     agent.requires_grad_(requires_grad=False)
-    if (logdir / "latest_model.pt").exists():
-        agent.load_state_dict(torch.load(logdir / "latest_model.pt"))
-        agent._should_pretrain._once = False
 
-    # make sure eval will be executed once after config.steps
-    while agent._step < config.steps + config.eval_every:
-        logger.write()
-        if config.eval_episode_num > 0:
-            print("Start evaluation.")
-            eval_policy = functools.partial(agent, training=False)
-            tools.simulate(
-                eval_policy,
-                eval_envs,
-                eval_eps,
-                config.evaldir,
-                logger,
-                is_eval=True,
-                episodes=config.eval_episode_num,
-            )
-            if config.video_pred_log:
-                video_pred = agent._wm.video_pred(next(eval_dataset))
-                logger.video("eval_openl", to_np(video_pred))
+    # def eval_policy(latent_state, decoder):
+    #     with torch.no_grad():
+    #         # decode latent state to observation
+    #         obs = decoder(latent_state)
 
-            if config.error_pred_log:
-                data = next(eval_dataset)
-                error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
-                agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, horizon=config.eval_batch_length)
-                for key, val in error_metrics.items():
-                    logger.scalar(key, float(val))
-                for key, val in agent_error_metrics.items():
-                    logger.scalar(key, float(val))
+    #         obs = torch.Tensor(obs).to(config.device)
+    #         post, prior = agent._world_model(obs)
+    #         action, logprob = agent._policy(post)
+    #         action = action.cpu().numpy()
+    #         logprob = logprob.cpu().numpy()
+    #         return {"action": action, "logprob": logprob}, post
 
-        print("Start training.")
-        state = tools.simulate(
-            agent,
-            train_envs,
-            train_eps,
-            config.traindir,
+    epochs = 200
+    epoch_length = 50
+    train_steps = 0
+    for epoch in range(epochs):
+        for _ in range(epoch_length):
+
+            # train world model and world model policy
+            agent._train(next(train_dataset))
+            train_steps += 1
+            print("train_steps", train_steps)
+
+        # gather some real episodes under policy
+        eval_policy = functools.partial(agent, training=False)
+        tools.simulate(
+            eval_policy,
+            eval_envs,
+            eval_eps,
+            config.evaldir,
             logger,
-            limit=config.dataset_size,
-            steps=config.eval_every,
-            state=state,
+            is_eval=True,
+            episodes=config.eval_episode_num,
         )
-        torch.save(agent.state_dict(), logdir / "latest_model.pt")
-    for env in train_envs + eval_envs:
-        try:
-            env.close()
-        except Exception:
-            pass
+
+        # eval prediction errors under policy
+        data = next(eval_dataset)
+        error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
+        agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, horizon=config.eval_batch_length)
+        for key, val in error_metrics.items():
+            logger.scalar(key, float(val))
+        for key, val in agent_error_metrics.items():
+            logger.scalar(key, float(val))
+
+        print("Agent error metrics: ")
+        print(agent_error_metrics)
+        print("\n\n")
 
 
 if __name__ == "__main__":

@@ -345,9 +345,9 @@ def simulate(
                         logger.scalar(f"eval_episodes", len(eval_scores))
                         logger.write(step=logger.step)
                         eval_done = True
-            if env_is_dataset:
-                if envs[0].ep_num == envs[0].data_buffer._count - 1:
-                    return
+        if env_is_dataset:
+            if envs[0].ep_num == envs[0].data_buffer._count - 1:
+                return
     if is_eval:
         # keep only last item for saving memory. this cache is used for video_pred later
         while len(cache) > 1:
