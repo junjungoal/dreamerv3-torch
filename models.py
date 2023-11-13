@@ -453,7 +453,7 @@ class ImagBehavior(nn.Module):
         return imag_feat, imag_state, imag_action, weights, metrics
 
 
-    def compute_traj_errors(self, env, start, data, horizon, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+    def compute_traj_errors(self, env, start, data, horizon, policy, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
         env.reset()()
         max_eval = 128
 
@@ -467,7 +467,7 @@ class ImagBehavior(nn.Module):
         
         with torch.cuda.amp.autocast(self._use_amp):
             imag_feat, imag_state, imag_action = self._imagine(
-                init, self.actor, horizon, None
+                init, policy, horizon, None, reload_policy=True
             )
             init_feat = self._world_model.dynamics.get_feat(init)
             imag_feat = imag_feat.permute((1, 0, 2))
@@ -515,7 +515,7 @@ class ImagBehavior(nn.Module):
             })
         return metrics
 
-    def _imagine(self, start, policy, horizon, repeats=None):
+    def _imagine(self, start, policy, horizon, repeats=None, reload_policy=False):
         dynamics = self._world_model.dynamics
         if repeats:
             raise NotImplemented("repeats is not implemented in this version")
@@ -526,7 +526,11 @@ class ImagBehavior(nn.Module):
             state, _, _ = prev
             feat = dynamics.get_feat(state)
             inp = feat.detach() if self._stop_grad_actor else feat
-            action = policy(inp).sample()
+            if reload_policy:
+                recon = self._world_model.heads["decoder"](inp)
+                action = policy(recon['states'].mode(), normed_input=False).sample()
+            else:
+                action = policy(inp).sample()
             succ = dynamics.img_step(state, action, sample=self._config.imag_sample)
             return succ, feat, action
 

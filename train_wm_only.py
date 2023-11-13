@@ -135,31 +135,29 @@ def main(config):
     ).to(config.device)
     agent.requires_grad_(requires_grad=False)
 
-    # def eval_policy(latent_state, decoder):
-    #     with torch.no_grad():
-    #         # decode latent state to observation
-    #         obs = decoder(latent_state)
 
-    #         obs = torch.Tensor(obs).to(config.device)
-    #         post, prior = agent._world_model(obs)
-    #         action, logprob = agent._policy(post)
-    #         action = action.cpu().numpy()
-    #         logprob = logprob.cpu().numpy()
-    #         return {"action": action, "logprob": logprob}, post
+    def eval_policy(obs, done, agent_state):
+        with torch.no_grad():
+            # decode latent state to observation
+            policy_dist = a2c.forward_actor(torch.from_numpy(obs['states']).type(torch.FloatTensor).to("cuda:0"), normed_input=False)
+            act = policy_dist.sample()
+            _, agent_state = agent._policy(obs, agent_state, training=False)
+            policy_output = {"action": act}
+            return policy_output, agent_state
 
     epochs = 200
     epoch_length = 50
     train_steps = 0
+    agent._task_behavior.reload_policy = a2c.forward_actor
     for epoch in range(epochs):
         for _ in range(epoch_length):
 
             # train world model and world model policy
             agent._train(next(train_dataset))
             train_steps += 1
-            
 
         # gather some real episodes under policy
-        eval_policy = functools.partial(agent, training=False)
+        # eval_policy = functools.partial(agent, training=False)
         tools.simulate(
             eval_policy,
             eval_envs,
@@ -173,7 +171,7 @@ def main(config):
         # eval prediction errors under policy
         data = next(eval_dataset)
         error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
-        agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, horizon=config.eval_batch_length)
+        agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, policy=a2c.forward_actor, horizon=config.eval_batch_length)
         for key, val in error_metrics.items():
             logger.scalar(key, float(val))
         for key, val in agent_error_metrics.items():

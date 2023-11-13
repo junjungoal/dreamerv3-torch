@@ -44,7 +44,7 @@ class ActorCritic(nn.Module):
                  clip_logprob=True,
                  min_logprob=-10.0,
                  learned_std=True,
-                 ac_use_normed_inputs=True,
+                 ac_use_normed_inputs=False,
                  target_update=0.02,
                  tune_actor_lr=3e-4,
                  lr_schedule='constant',
