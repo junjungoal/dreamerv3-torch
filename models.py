@@ -485,6 +485,11 @@ class ImagBehavior(nn.Module):
                 init_sim_state = sim_state[init_t]
             env.set_state(map2np(obs[init_t]), init_sim_state)
             gt_obs, _, term, _  = env.step({'action': real_act[0].cpu().numpy()})()
+            obs_error = np.square(gt_obs['states'] - to_np(obs[init_t+1])).mean()
+            if 1 not in error_lists:
+                error_lists[1] = [obs_error]
+            else:
+                error_lists[1].append(obs_error)
             for j in range(max_steps - 1):
                 act = to_np(action[init_t+j])
                 gt_obs, _, term, _ = env.step({'action': act})()
