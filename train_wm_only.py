@@ -110,7 +110,6 @@ def main(config):
         return {"action": action, "logprob": logprob}, None
     
     print("Adding dataset to replay buffer...")
-    episodes = 10 # TODO: REMOVE
     state = tools.simulate(
         random_agent,
         train_envs,
@@ -118,9 +117,8 @@ def main(config):
         config.traindir,
         logger,
         limit=config.dataset_size,
-        # steps=config.load_step,
-        # episodes=train_envs[0].data_buffer._count,
-        episodes=episodes,
+        steps=config.load_step,
+        episodes=train_envs[0].data_buffer._count,
         env_is_dataset=True,
         state=state,
     )
@@ -148,17 +146,20 @@ def main(config):
             policy_output = {"action": act}
             return policy_output, agent_state
 
-    epochs = 100
-    epoch_length = 10000
+    epochs = 500
+    epoch_length = 1000
     train_steps = 0
     agent._task_behavior.reload_policy = a2c.forward_actor
     for epoch in range(epochs):
+
+        print("Training world model...")
         for _ in range(epoch_length):
 
             # train world model and world model policy
             agent._train(next(train_dataset))
             train_steps += 1
 
+        print("Gathering trajectories...")
         # gather some real episodes under policy
         # eval_policy = functools.partial(agent, training=False)
         tools.simulate(
@@ -172,6 +173,7 @@ def main(config):
         )
 
         # eval prediction errors under policy
+        print("Evaluating errors...")
         data = next(eval_dataset)
         error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
         agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, policy=a2c.forward_actor, horizon=config.eval_batch_length)
