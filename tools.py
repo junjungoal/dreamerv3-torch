@@ -223,7 +223,6 @@ def simulate(
     envs,
     cache,
     directory,
-    logger,
     is_eval=False,
     limit=None,
     steps=0,
@@ -307,44 +306,6 @@ def simulate(
                 length = len(cache[envs[i].id]["reward"]) - 1
                 score = float(np.array(cache[envs[i].id]["reward"]).sum())
 
-                if not env_is_dataset:
-                    video = cache[envs[i].id]["image"]
-                # record logs given from environments
-                for key in list(cache[envs[i].id].keys()):
-                    if "log_" in key:
-                        logger.scalar(
-                            key, float(np.array(cache[envs[i].id][key]).sum())
-                        )
-                        # log items won't be used later
-                        cache[envs[i].id].pop(key)
-
-                if not is_eval:
-                    step_in_dataset = erase_over_episodes(cache, limit)
-                    logger.scalar(f"dataset_size", step_in_dataset)
-                    logger.scalar(f"train_return", score)
-                    logger.scalar(f"train_length", length)
-                    logger.scalar(f"train_episodes", len(cache))
-                    logger.write(step=logger.step)
-                else:
-                    if not "eval_lengths" in locals():
-                        eval_lengths = []
-                        eval_scores = []
-                        eval_done = False
-                    # start counting scores for evaluation
-                    eval_scores.append(score)
-                    eval_lengths.append(length)
-
-                    score = sum(eval_scores) / len(eval_scores)
-                    length = sum(eval_lengths) / len(eval_lengths)
-                    if not env_is_dataset:
-                        logger.video(f"eval_policy", np.array(video)[None])
-
-                    if len(eval_scores) >= episodes and not eval_done:
-                        logger.scalar(f"eval_return", score)
-                        logger.scalar(f"eval_length", length)
-                        logger.scalar(f"eval_episodes", len(eval_scores))
-                        logger.write(step=logger.step)
-                        eval_done = True
         if env_is_dataset:
             if envs[0].ep_num == envs[0].data_buffer._count - 1:
                 return

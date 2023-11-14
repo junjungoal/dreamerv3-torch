@@ -146,18 +146,11 @@ def main(config):
             policy_output = {"action": act}
             return policy_output, agent_state
 
-    epochs = 100
-    epoch_length = 5000
+    epochs = 250
+    epoch_length = 2000
     train_steps = 0
     agent._task_behavior.reload_policy = a2c.forward_actor
     for epoch in range(epochs):
-
-        print("Training world model...")
-        for _ in range(epoch_length):
-
-            # train world model and world model policy
-            agent._train(next(train_dataset))
-            train_steps += 1
 
         print("Gathering trajectories...")
         # gather some real episodes under policy
@@ -167,9 +160,8 @@ def main(config):
             eval_envs,
             eval_eps,
             config.evaldir,
-            logger,
             is_eval=True,
-            episodes=config.eval_episode_num,
+            episodes=5,
         )
 
         # eval prediction errors under policy
@@ -185,6 +177,13 @@ def main(config):
         print("Agent error metrics: ")
         print(agent_error_metrics)
         print("\n\n")
+
+        print("Training world model...")
+        for _ in range(epoch_length):
+
+            # train world model and world model policy
+            agent._train(next(train_dataset))
+            train_steps += 1
 
 
 if __name__ == "__main__":
