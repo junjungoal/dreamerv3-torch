@@ -8,6 +8,7 @@ os.environ["MUJOCO_GL"] = "egl"
 
 import numpy as np
 import ruamel.yaml as yaml
+import wandb
 
 sys.path.append(str(pathlib.Path(__file__).parent))
 
@@ -49,6 +50,8 @@ def main(config):
     # step in logger is environmental step
     # logger = tools.Logger(logdir, config.action_repeat * step)
     logger = tools.WandBLogger(logdir, config.action_repeat * step, config.group, config)
+
+    wandb.init(entity="a2i", project="diffusion_world_models", group=config.group, config=config)
 
     print("Create envs.")
     if config.offline_traindir:
@@ -145,8 +148,8 @@ def main(config):
             policy_output = {"action": act}
             return policy_output, agent_state
 
-    epochs = 200
-    epoch_length = 50
+    epochs = 100
+    epoch_length = 10000
     train_steps = 0
     agent._task_behavior.reload_policy = a2c.forward_actor
     for epoch in range(epochs):
@@ -172,10 +175,9 @@ def main(config):
         data = next(eval_dataset)
         error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
         agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, policy=a2c.forward_actor, horizon=config.eval_batch_length)
-        for key, val in error_metrics.items():
-            logger.scalar(key, float(val))
-        for key, val in agent_error_metrics.items():
-            logger.scalar(key, float(val))
+        all_metrics = {**error_metrics, **agent_error_metrics}
+
+        wandb.log(all_metrics, step=train_steps)
 
         print("Train_steps: ", train_steps)
         print("Agent error metrics: ")

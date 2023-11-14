@@ -259,7 +259,7 @@ class WorldModel(nn.Module):
 
         return torch.cat([truth, model, error], 2)
 
-    def compute_traj_errors(self, env, data, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+    def compute_traj_errors(self, env, data):
         env.reset()()
         data = self.preprocess(data)
         embed = self.encoder(data)
@@ -274,34 +274,29 @@ class WorldModel(nn.Module):
         recon_obs = {key: recon[key].mode() for key in recon.keys()}
 
         max_steps = data['action'].shape[1] - 1
-        if max_steps not in num_steps:
-            num_steps.append(max_steps)
+        error_lists  = dict()
 
+        # for i in range(0, data['action'].shape[1] - num_step - 1, num_step):
+        for obs, action, sim_state in zip(recon_obs['states'], data['action'], data['sim_state']):
+            init_t = 0
+            env.reset()()
+            env.set_state(obs[init_t], to_np(sim_state)[init_t])
+            for i in range(max_steps):
+                num_step = i + 1
+                act = to_np(action[init_t+i])
+                gt_obs, _, term, _ = env.step({'action': act})()
+                obs_error = np.square(gt_obs['states'] - obs[init_t+num_step].detach().cpu().numpy()).mean()
+                if (num_step <= 20 or num_step % 5 == 0) or num_step == max_steps:
+                    if num_step not in error_lists:
+                        error_lists[num_step] = [obs_error]
+                    else:
+                        error_lists[num_step].append(obs_error)
 
-        metrics = {}
-        for num_step in num_steps:
-            if num_step > max_steps:
-                continue
-
-            obs_errors = []
-            # for i in range(0, data['action'].shape[1] - num_step - 1, num_step):
-            for obs, action, sim_state in zip(recon_obs['states'], data['action'], data['sim_state']):
-                init_t = 0
-                env.reset()()
-                env.set_state(obs[init_t], to_np(sim_state)[init_t])
-                for i in range(num_step):
-                    act = to_np(action[init_t+i])
-                    gt_obs, _, term, _ = env.step({'action': act})()
-                obs_errors.append(np.square(gt_obs['states'] - obs[init_t+num_step].detach().cpu().numpy()).mean())
-
-            obs_errors = np.array(obs_errors)
-            if len(obs_errors) == 0:
-                continue
+        metrics = dict()
+        for step in error_lists:
             metrics.update({
-                f"rssm/errors/dynamics_mse_{num_step:04}_step": obs_errors.mean(),
-                f"rssm/errors/dynamics_mse_std_{num_step:04}_step": obs_errors.std(),
-                f"rssm/errors/dynamics_mse_max_{num_step:04}_step": obs_errors.max(),
-                f"rssm/errors/dynamics_mse_min_{num_step:04}_step": obs_errors.min(),
+                f"rssm_errors/dynamics_mse_{step:04}_step": np.array(error_lists[step]).mean(),
+                f"rssm_errors/dynamics_mse_std_{step:04}_step": np.array(error_lists[step]).std(),
             })
         return metrics, post
 
@@ -453,7 +448,7 @@ class ImagBehavior(nn.Module):
         return imag_feat, imag_state, imag_action, weights, metrics
 
 
-    def compute_traj_errors(self, env, start, data, horizon, policy, num_steps=[1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 500]):
+    def compute_traj_errors(self, env, start, data, horizon, policy):
         env.reset()()
         max_eval = 128
 
@@ -479,39 +474,32 @@ class ImagBehavior(nn.Module):
         imag_action = imag_action.permute((1, 0, 2))[:max_eval]
 
         max_steps = horizon - 1
-        if max_steps not in num_steps:
-            num_steps.append(max_steps)
-
-        metrics = {}
-        for num_step in num_steps:
-            obs_errors = []
-            if num_step > horizon:
-                continue
-
-            obs_errors = []
-            for obs, action, sim_state, real_act in zip(recon_obs, imag_action, data['sim_state'], data["action"]):
-                obs = obs['states']
-                init_t = 0
-                env.reset()()
-                if torch.is_tensor(sim_state[init_t]):
-                    init_sim_state = to_np(sim_state[init_t])
-                else:
-                    init_sim_state = sim_state[init_t]
-                env.set_state(map2np(obs[init_t]), init_sim_state)
-                gt_obs, _, term, _  = env.step({'action': real_act[0].cpu().numpy()})()
-                for j in range(num_step - 1):
-                    act = to_np(action[init_t+j])
-                    gt_obs, _, term, _ = env.step({'action': act})()
-
-                obs_errors.append(np.square(gt_obs['states'] - to_np(obs[init_t+num_step])).mean())
-            obs_errors = np.array(obs_errors)
-            if len(obs_errors) == 0:
-                continue
+        error_lists  = dict()
+        for obs, action, sim_state, real_act in zip(recon_obs, imag_action, data['sim_state'], data["action"]):
+            obs = obs['states']
+            init_t = 0
+            env.reset()()
+            if torch.is_tensor(sim_state[init_t]):
+                init_sim_state = to_np(sim_state[init_t])
+            else:
+                init_sim_state = sim_state[init_t]
+            env.set_state(map2np(obs[init_t]), init_sim_state)
+            gt_obs, _, term, _  = env.step({'action': real_act[0].cpu().numpy()})()
+            for j in range(max_steps - 1):
+                act = to_np(action[init_t+j])
+                gt_obs, _, term, _ = env.step({'action': act})()
+                num_step = j + 2
+                obs_error = np.square(gt_obs['states'] - to_np(obs[init_t+num_step])).mean()
+                if (num_step <= 20 or num_step % 5 == 0) or num_step == max_steps:
+                    if num_step not in error_lists:
+                        error_lists[num_step] = [obs_error]
+                    else:
+                        error_lists[num_step].append(obs_error)
+        metrics = dict()
+        for step in error_lists:
             metrics.update({
-                f"agent/errors/dynamics_mse_{num_step:04}_step": obs_errors.mean(),
-                f"agent/errors/dynamics_mse_std_{num_step:04}_step": obs_errors.std(),
-                f"agent/errors/dynamics_mse_max_{num_step:04}_step": obs_errors.max(),
-                f"agent/errors/dynamics_mse_min_{num_step:04}_step": obs_errors.min(),
+                f"agent_errors/dynamics_mse_{step:04}_step": np.array(error_lists[step]).mean(),
+                f"agent_errors/dynamics_mse_std_{step:04}_step": np.array(error_lists[step]).std(),
             })
         return metrics
 
