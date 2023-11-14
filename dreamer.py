@@ -156,19 +156,19 @@ class Dreamer(nn.Module):
         metrics = {}
         post, context, mets = self._wm._train(data)
         metrics.update(mets)
-        start = post
-        reward = lambda f, s, a: self._wm.heads["reward"](
-            self._wm.dynamics.get_feat(s)
-        ).mode()
-        metrics.update(self._task_behavior._train(start, reward)[-1])
-        if self._config.expl_behavior != "greedy":
-            mets = self._expl_behavior.train(start, context, data)[-1]
-            metrics.update({"expl_" + key: value for key, value in mets.items()})
-        for name, value in metrics.items():
-            if not name in self._metrics.keys():
-                self._metrics[name] = [value]
-            else:
-                self._metrics[name].append(value)
+        # start = post
+        # reward = lambda f, s, a: self._wm.heads["reward"](
+        #     self._wm.dynamics.get_feat(s)
+        # ).mode()
+        # metrics.update(self._task_behavior._train(start, reward)[-1])
+        # if self._config.expl_behavior != "greedy":
+        #     mets = self._expl_behavior.train(start, context, data)[-1]
+        #     metrics.update({"expl_" + key: value for key, value in mets.items()})
+        # for name, value in metrics.items():
+        #     if not name in self._metrics.keys():
+        #         self._metrics[name] = [value]
+        #     else:
+        #         self._metrics[name].append(value)
 
 
 def count_steps(folder):
