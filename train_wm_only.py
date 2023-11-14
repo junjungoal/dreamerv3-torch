@@ -49,7 +49,7 @@ def main(config):
     step = count_steps(config.traindir)
     # step in logger is environmental step
     # logger = tools.Logger(logdir, config.action_repeat * step)
-    logger = tools.WandBLogger(logdir, config.action_repeat * step, config.group, config)
+    # logger = tools.WandBLogger(logdir, config.action_repeat * step, config.group, config)
 
     wandb.init(entity="a2i", project="diffusion_world_models", group=config.group, config=config)
 
