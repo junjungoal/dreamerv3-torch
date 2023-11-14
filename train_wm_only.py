@@ -146,8 +146,8 @@ def main(config):
             policy_output = {"action": act}
             return policy_output, agent_state
 
-    epochs = 250
-    epoch_length = 2000
+    epochs = 50
+    epoch_length = 10000
     train_steps = 0
     agent._task_behavior.reload_policy = a2c.forward_actor
     for epoch in range(epochs):
