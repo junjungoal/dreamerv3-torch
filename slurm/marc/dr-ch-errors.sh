@@ -23,9 +23,9 @@ conda activate diffusion
 
 SEED=${SLURM_ARRAY_TASK_ID}
 TASK=HalfCheetah-v3
-GROUP=dreamer-errors-final_datasets_nov12
+GROUP=dreamer-errors-final_datasets_nov12-fix
 DATASET=/data/engs-a2i/pemb5572/diffusion/datasets/final_datasets_nov12/final-rl-runs-lowtrainratio_seed1_HalfCheetah
 LOAD_STEP=1000000
-H=500
+H=300
 
 WANDB__SERVICE_WAIT=300 python3 train_wm_only.py --configs gym_proprio --task gym_$TASK --logdir /data/engs-a2i/pemb5572/dreamerv3/$TASK/$GROUP/$H/$SEED --seed $SEED --group $GROUP --eval_batch_length $H --load_path $DATASET --load_step $LOAD_STEP 
