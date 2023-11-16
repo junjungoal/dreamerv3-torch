@@ -261,7 +261,7 @@ class WorldModel(nn.Module):
 
     def compute_traj_errors(self, env, data):
         env.reset()()
-        init_steps = 2
+        init_steps = 5
         data = self.preprocess(data)
         embed = self.encoder(data)
         states, post = self.dynamics.observe(
@@ -282,14 +282,15 @@ class WorldModel(nn.Module):
             env.set_state(obs[init_t], to_np(sim_state)[init_t])
             for i in range(max_steps):
                 num_step = i + 1
+                open_l_steps = num_step - init_steps + 2
                 act = to_np(action[init_t+i])
                 gt_obs, _, term, _ = env.step({'action': act})()
                 obs_error = np.square(gt_obs['states'] - obs[init_t+num_step].detach().cpu().numpy()).mean()
-                if (num_step <= 20 or num_step % 5 == 0) or num_step == max_steps:
+                if open_l_steps > 0 and ((open_l_steps <= 20 or open_l_steps % 5 == 0) or num_step == max_steps):
                     if num_step not in error_lists:
-                        error_lists[num_step] = [obs_error]
+                        error_lists[open_l_steps] = [obs_error]
                     else:
-                        error_lists[num_step].append(obs_error)
+                        error_lists[open_l_steps].append(obs_error)
 
         metrics = dict()
         for step in error_lists:
