@@ -261,23 +261,22 @@ class WorldModel(nn.Module):
 
     def compute_traj_errors(self, env, data):
         env.reset()()
+        init_steps = 2
         data = self.preprocess(data)
         embed = self.encoder(data)
         states, post = self.dynamics.observe(
-            embed, data["action"], data["is_first"]
+            embed[:, 0:init_steps], data["action"][:, 0:init_steps], data["is_first"][:, 0:init_steps]
         )
-        init = {k: v[:, 0] for k, v in states.items()}
-        prior = self.dynamics.imagine(data["action"][:, 1:], init)
-        for key in prior.keys():
-            prior[key] = torch.cat([init[key].unsqueeze(1), prior[key]], dim=1)
-        recon = self.heads["decoder"](self.dynamics.get_feat(prior))
-        recon_obs = {key: recon[key].mode() for key in recon.keys()}
-
+        recon = self.heads["decoder"](self.dynamics.get_feat(states))["states"].mode()
+        init = {k: v[:, -1] for k, v in states.items()}
+        prior = self.dynamics.imagine(data["action"][:, init_steps:], init)
+        openl = self.heads["decoder"](self.dynamics.get_feat(prior))["states"].mode()
+        state_predictions = torch.cat([recon, openl], 1)
         max_steps = data['action'].shape[1] - 1
         error_lists  = dict()
 
         # for i in range(0, data['action'].shape[1] - num_step - 1, num_step):
-        for obs, action, sim_state in zip(recon_obs['states'], data['action'], data['sim_state']):
+        for obs, action, sim_state in zip(state_predictions, data['action'], data['sim_state']):
             init_t = 0
             env.reset()()
             env.set_state(obs[init_t], to_np(sim_state)[init_t])
@@ -456,7 +455,7 @@ class ImagBehavior(nn.Module):
         data = self._world_model.preprocess(data)
         embed = self._world_model.encoder(data)
         states, post = self._world_model.dynamics.observe(
-            embed, data["action"], data["is_first"]
+            embed[:, :5], data["action"][:, :5], data["is_first"][:, :5]
         )
         init = {k: v[:, 0:1] for k, v in states.items()}
         

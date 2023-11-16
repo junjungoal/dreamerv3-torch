@@ -39,7 +39,7 @@ class Gym:
         return obs, reward, termination, info
     
     def set_state(self, obs, sim_state):
-        self._env.set_state(sim_state[:len(sim_state)//2], sim_state[len(sim_state)//2:])
+        self._env.set_state(sim_state[:self._env.model.nq], sim_state[self._env.model.nq:])
 
     def reset(self):
         info = {}

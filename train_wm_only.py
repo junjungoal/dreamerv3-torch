@@ -146,8 +146,8 @@ def main(config):
             policy_output = {"action": act}
             return policy_output, agent_state
 
-    epochs = 50
-    epoch_length = 10000
+    epochs = 250
+    epoch_length = 2000
     train_steps = 0
     agent._task_behavior.reload_policy = a2c.forward_actor
     for epoch in range(epochs):
@@ -168,14 +168,10 @@ def main(config):
         print("Evaluating errors...")
         data = next(eval_dataset)
         error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
-        agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, policy=a2c.forward_actor, horizon=config.eval_batch_length)
-        all_metrics = {**error_metrics, **agent_error_metrics}
-
-        wandb.log(all_metrics, step=train_steps)
-
+        wandb.log(error_metrics, step=train_steps)
         print("Train_steps: ", train_steps)
-        print("Agent error metrics: ")
-        print(agent_error_metrics)
+        print("RSSM error metrics: ")
+        print(error_metrics)
         print("\n\n")
 
         print("Training world model...")
