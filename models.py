@@ -289,7 +289,7 @@ class WorldModel(nn.Module):
                 env.set_state(obs[init_t], to_np(sim_state)[init_t])
                 for i in range(max_steps):
                     num_step = i + 1
-                    open_l_steps = num_step - init_steps + 2
+                    open_l_steps = num_step - init_steps + 1
                     act = to_np(action[init_t+i])
                     gt_obs, _, term, _ = env.step({'action': act})()
                     obs_error = np.square(gt_obs['states'] - obs[init_t+num_step].detach().cpu().numpy()).mean()
