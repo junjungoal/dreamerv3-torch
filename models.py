@@ -261,7 +261,7 @@ class WorldModel(nn.Module):
 
     def compute_traj_errors(self, env, data):
         env.reset()()
-        init_steps = 5
+        init_steps = 8
         data = self.preprocess(data)
         embed = self.encoder(data)
         states, post = self.dynamics.observe(
