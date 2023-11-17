@@ -23,7 +23,7 @@ conda activate diffusion
 
 SEED=${SLURM_ARRAY_TASK_ID}
 TASK=HalfCheetah-v3
-GROUP=dreamerv3-errors-final_datasets_nov12-mixedlengthinit
+GROUP=dreamerv3-errors-final_datasets_nov12-mixedlengthinit-forloop
 DATASET=/data/engs-a2i/pemb5572/diffusion/datasets/final_datasets_nov12/final-rl-runs-lowtrainratio_seed1_HalfCheetah
 LOAD_STEP=1000000
 H=300
