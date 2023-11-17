@@ -146,36 +146,38 @@ def main(config):
             policy_output = {"action": act}
             return policy_output, agent_state
 
-    epochs = 250
-    epoch_length = 2000
+    epochs = 100
+    epoch_length = 5000
     train_steps = 0
     agent._task_behavior.reload_policy = a2c.forward_actor
     for epoch in range(epochs):
 
-        # print("Gathering trajectories...")
-        # # gather some real episodes under policy
-        # # eval_policy = functools.partial(agent, training=False)
-        # tools.simulate(
-        #     eval_policy,
-        #     eval_envs,
-        #     eval_eps,
-        #     config.evaldir,
-        #     is_eval=True,
-        #     episodes=5,
-        # )
+        print("Gathering trajectories...")
+        # gather some real episodes under policy
+        # eval_policy = functools.partial(agent, training=False)
+        tools.simulate(
+            eval_policy,
+            eval_envs,
+            eval_eps,
+            config.evaldir,
+            is_eval=True,
+            episodes=5,
+        )
 
         # eval prediction errors under policy
         print("Evaluating errors...")
-        data = next(train_dataset)
-        # error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
-        agent_error_metrics, detailed_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], None, data, policy=a2c.forward_actor, horizon=config.eval_batch_length)
-        all_metrics = {**detailed_metrics, **agent_error_metrics}
+        data = next(eval_dataset)
+        error_metrics, detailed_metrics = agent._wm.compute_traj_errors(eval_envs[0],data)
+
+        # data = next(train_dataset)
+        # agent_error_metrics, detailed_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], None, data, policy=a2c.forward_actor, horizon=config.eval_batch_length)
+        all_metrics = {**detailed_metrics, **error_metrics}
 
         wandb.log(all_metrics, step=train_steps)
 
         print("Train_steps: ", train_steps)
         print("Agent error metrics: ")
-        print(agent_error_metrics)
+        print(error_metrics)
         # print("\n")
         # print("RSSM Error Metrics: ")
         # print(error_metrics)

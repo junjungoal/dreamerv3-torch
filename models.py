@@ -262,7 +262,14 @@ class WorldModel(nn.Module):
     def compute_traj_errors(self, env, data):
         env.reset()()
         error_lists  = dict()
-        for init_steps in range(1, 50):
+        max_init_steps = 50
+        interval = 2
+
+        error_lists_per_cond  = dict()
+        for init_steps in range(1, max_init_steps, interval):
+            error_lists_per_cond[init_steps] = dict()
+
+        for init_steps in range(1, max_init_steps, interval):
             data = self.preprocess(data)
             embed = self.encoder(data)
             states, post = self.dynamics.observe(
@@ -292,13 +299,27 @@ class WorldModel(nn.Module):
                         else:
                             error_lists[open_l_steps].append(obs_error)
 
+                        if open_l_steps not in error_lists_per_cond[init_steps]:
+                            error_lists_per_cond[init_steps][open_l_steps] = [obs_error]
+                        else:
+                            error_lists_per_cond[init_steps][open_l_steps].append(obs_error)
+
         metrics = dict()
         for step in error_lists:
             metrics.update({
                 f"rssm_errors/dynamics_mse_{step:04}_step": np.array(error_lists[step]).mean(),
                 f"rssm_errors/dynamics_mse_std_{step:04}_step": np.array(error_lists[step]).std(),
             })
-        return metrics, post
+
+        detailed_metrics = dict()
+        for cond_steps in error_lists_per_cond:
+            for step in error_lists_per_cond[cond_steps]:
+                detailed_metrics.update({
+                    f"agent_errors/{cond_steps}_cond_steps/dynamics_mse_{step:04}_step": np.array(error_lists_per_cond[cond_steps][step]).mean(),
+                    f"agent_errors/{cond_steps}_cond_steps/dynamics_mse_std_{step:04}_step": np.array(error_lists_per_cond[cond_steps][step]).std(),
+                })
+
+        return metrics, detailed_metrics
 
 class ImagBehavior(nn.Module):
     def __init__(self, config, world_model, stop_grad_actor=True, reward=None):

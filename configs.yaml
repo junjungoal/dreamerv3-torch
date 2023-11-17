@@ -75,7 +75,7 @@ defaults:
 
   # Training
   batch_size: 16
-  batch_length: 60
+  batch_length: 64
   eval_batch_size: 24
   eval_batch_length: 16
   train_ratio: 256
