@@ -475,7 +475,7 @@ class ImagBehavior(nn.Module):
 
         max_steps = horizon - 1
         error_lists_per_cond  = dict()
-        for _ in range(max_init_steps):
+        for init_steps in range(1, max_init_steps):
             error_lists_per_cond[init_steps] = dict()
         # print("imagine action shape", imag_action.shape)
         # print("Imag recon state shape", imag_recon.shape)
