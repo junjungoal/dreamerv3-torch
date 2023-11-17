@@ -261,36 +261,36 @@ class WorldModel(nn.Module):
 
     def compute_traj_errors(self, env, data):
         env.reset()()
-        init_steps = 8
-        data = self.preprocess(data)
-        embed = self.encoder(data)
-        states, post = self.dynamics.observe(
-            embed[:, 0:init_steps], data["action"][:, 0:init_steps], data["is_first"][:, 0:init_steps]
-        )
-        recon = self.heads["decoder"](self.dynamics.get_feat(states))["states"].mode()
-        init = {k: v[:, -1] for k, v in states.items()}
-        prior = self.dynamics.imagine(data["action"][:, init_steps:], init)
-        openl = self.heads["decoder"](self.dynamics.get_feat(prior))["states"].mode()
-        state_predictions = torch.cat([recon, openl], 1)
-        max_steps = data['action'].shape[1] - 1
         error_lists  = dict()
-
-        # for i in range(0, data['action'].shape[1] - num_step - 1, num_step):
-        for obs, action, sim_state in zip(state_predictions, data['action'], data['sim_state']):
-            init_t = 0
-            env.reset()()
-            env.set_state(obs[init_t], to_np(sim_state)[init_t])
-            for i in range(max_steps):
-                num_step = i + 1
-                open_l_steps = num_step - init_steps + 2
-                act = to_np(action[init_t+i])
-                gt_obs, _, term, _ = env.step({'action': act})()
-                obs_error = np.square(gt_obs['states'] - obs[init_t+num_step].detach().cpu().numpy()).mean()
-                if open_l_steps > 0 and ((open_l_steps <= 20 or open_l_steps % 5 == 0) or num_step == max_steps):
-                    if num_step not in error_lists:
-                        error_lists[open_l_steps] = [obs_error]
-                    else:
-                        error_lists[open_l_steps].append(obs_error)
+        for init_steps in range(1, 50):
+            data = self.preprocess(data)
+            embed = self.encoder(data)
+            states, post = self.dynamics.observe(
+                embed[:, 0:init_steps], data["action"][:, 0:init_steps], data["is_first"][:, 0:init_steps]
+            )
+            recon = self.heads["decoder"](self.dynamics.get_feat(states))["states"].mode()
+            init = {k: v[:, -1] for k, v in states.items()}
+            prior = self.dynamics.imagine(data["action"][:, init_steps:], init)
+            openl = self.heads["decoder"](self.dynamics.get_feat(prior))["states"].mode()
+            state_predictions = torch.cat([recon, openl], 1)
+            max_steps = data['action'].shape[1] - 1
+            
+            # for i in range(0, data['action'].shape[1] - num_step - 1, num_step):
+            for obs, action, sim_state in zip(state_predictions, data['action'], data['sim_state']):
+                init_t = 0
+                env.reset()()
+                env.set_state(obs[init_t], to_np(sim_state)[init_t])
+                for i in range(max_steps):
+                    num_step = i + 1
+                    open_l_steps = num_step - init_steps + 2
+                    act = to_np(action[init_t+i])
+                    gt_obs, _, term, _ = env.step({'action': act})()
+                    obs_error = np.square(gt_obs['states'] - obs[init_t+num_step].detach().cpu().numpy()).mean()
+                    if open_l_steps > 0 and ((open_l_steps <= 20 or open_l_steps % 5 == 0) or num_step == max_steps):
+                        if num_step not in error_lists:
+                            error_lists[open_l_steps] = [obs_error]
+                        else:
+                            error_lists[open_l_steps].append(obs_error)
 
         metrics = dict()
         for step in error_lists:
@@ -450,15 +450,16 @@ class ImagBehavior(nn.Module):
 
     def compute_traj_errors(self, env, start, data, horizon, policy):
         env.reset()()
+        init_steps = 10
+        max_init_steps = 50
         max_eval = 128
 
-        env.reset()()
         data = self._world_model.preprocess(data)
         embed = self._world_model.encoder(data)
         states, post = self._world_model.dynamics.observe(
-            embed[:, :5], data["action"][:, :5], data["is_first"][:, :5]
+            embed[:, :max_init_steps], data["action"][:, :max_init_steps], data["is_first"][:, :max_init_steps]
         )
-        init = {k: v[:, 0:1] for k, v in states.items()}
+        init = {k: v[:, :] for k, v in states.items()}
         
         with torch.cuda.amp.autocast(self._use_amp):
             imag_feat, imag_state, imag_action = self._imagine(
@@ -466,40 +467,32 @@ class ImagBehavior(nn.Module):
             )
             init_feat = self._world_model.dynamics.get_feat(init)
             imag_feat = imag_feat.permute((1, 0, 2))
-            imag_feat = torch.cat([init_feat, imag_feat], dim=1)
-            recon = self._world_model.heads["decoder"](imag_feat)
-        recon_obs = {key: recon[key].mode() for key in recon.keys()}
-        keys = list(recon_obs.keys())
-        recon_obs = dictlist2listdict(recon_obs)[:max_eval]
-        imag_action = imag_action.permute((1, 0, 2))[:max_eval]
+            imag_recon = self._world_model.heads["decoder"](imag_feat)["states"].mode()
+
+        max_steps = data['action'].shape[1] - 1
+        error_lists  = dict()
 
         max_steps = horizon - 1
         error_lists  = dict()
-        for obs, action, sim_state, real_act in zip(recon_obs, imag_action, data['sim_state'], data["action"]):
-            obs = obs['states']
-            init_t = 0
-            env.reset()()
-            if torch.is_tensor(sim_state[init_t]):
-                init_sim_state = to_np(sim_state[init_t])
-            else:
-                init_sim_state = sim_state[init_t]
-            env.set_state(map2np(obs[init_t]), init_sim_state)
-            gt_obs, _, term, _  = env.step({'action': real_act[0].cpu().numpy()})()
-            obs_error = np.square(gt_obs['states'] - to_np(obs[init_t+1])).mean()
-            if 1 not in error_lists:
-                error_lists[1] = [obs_error]
-            else:
-                error_lists[1].append(obs_error)
-            for j in range(max_steps - 1):
-                act = to_np(action[init_t+j])
-                gt_obs, _, term, _ = env.step({'action': act})()
-                num_step = j + 2
-                obs_error = np.square(gt_obs['states'] - to_np(obs[init_t+num_step])).mean()
-                if (num_step <= 20 or num_step % 5 == 0) or num_step == max_steps:
-                    if num_step not in error_lists:
-                        error_lists[num_step] = [obs_error]
-                    else:
-                        error_lists[num_step].append(obs_error)
+        for obs, action, sim_state, real_act in zip(imag_recon, imag_action, data['sim_state'], data["action"]):
+            for init_steps in range(1, max_init_steps):
+                init_t = 0
+                env.reset()()
+                if torch.is_tensor(sim_state[init_steps]):
+                    init_sim_state = to_np(sim_state[init_steps])
+                else:
+                    init_sim_state = sim_state[init_t]
+                env.set_state(map2np(obs[init_t]), init_sim_state)
+
+                for openl_steps in range(max_steps - init_steps):
+                    act = to_np(action[init_steps, openl_steps])
+                    gt_obs, _, term, _ = env.step({'action': act})()
+                    obs_error = np.square(gt_obs['states'] - to_np(obs[init_steps, openl_steps])).mean()
+                    if ((openl_steps + 1) <= 20 or (openl_steps + 1) % 5 == 0) or (openl_steps + 1) == max_steps:
+                        if (openl_steps + 1) not in error_lists:
+                            error_lists[(openl_steps + 1)] = [obs_error]
+                        else:
+                            error_lists[(openl_steps + 1)].append(obs_error)
         metrics = dict()
         for step in error_lists:
             metrics.update({
