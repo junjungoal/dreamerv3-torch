@@ -287,7 +287,7 @@ class WorldModel(nn.Module):
                     gt_obs, _, term, _ = env.step({'action': act})()
                     obs_error = np.square(gt_obs['states'] - obs[init_t+num_step].detach().cpu().numpy()).mean()
                     if open_l_steps > 0 and ((open_l_steps <= 20 or open_l_steps % 5 == 0) or num_step == max_steps):
-                        if num_step not in error_lists:
+                        if open_l_steps not in error_lists:
                             error_lists[open_l_steps] = [obs_error]
                         else:
                             error_lists[open_l_steps].append(obs_error)
@@ -453,13 +453,14 @@ class ImagBehavior(nn.Module):
         init_steps = 10
         max_init_steps = 50
         max_eval = 128
-
+        batch, _, _ = data["action"].shape
         data = self._world_model.preprocess(data)
         embed = self._world_model.encoder(data)
         states, post = self._world_model.dynamics.observe(
             embed[:, :max_init_steps], data["action"][:, :max_init_steps], data["is_first"][:, :max_init_steps]
         )
         init = {k: v[:, :] for k, v in states.items()}
+        print("Init shape", init['stoch'].shape)
         
         with torch.cuda.amp.autocast(self._use_amp):
             imag_feat, imag_state, imag_action = self._imagine(
@@ -468,12 +469,18 @@ class ImagBehavior(nn.Module):
             init_feat = self._world_model.dynamics.get_feat(init)
             imag_feat = imag_feat.permute((1, 0, 2))
             imag_recon = self._world_model.heads["decoder"](imag_feat)["states"].mode()
-
+        imag_action = imag_action.permute((1, 0, 2))
         max_steps = data['action'].shape[1] - 1
         error_lists  = dict()
 
         max_steps = horizon - 1
-        error_lists  = dict()
+        error_lists_per_cond  = dict()
+        for _ in range(max_init_steps):
+            error_lists_per_cond[init_steps] = dict()
+        # print("imagine action shape", imag_action.shape)
+        # print("Imag recon state shape", imag_recon.shape)
+        imag_action = imag_action.reshape(batch, -1, imag_action.shape[-2], imag_action.shape[-1])
+        imag_recon = imag_recon.reshape(batch, -1, imag_recon.shape[-2], imag_recon.shape[-1])
         for obs, action, sim_state, real_act in zip(imag_recon, imag_action, data['sim_state'], data["action"]):
             for init_steps in range(1, max_init_steps):
                 init_t = 0
@@ -484,8 +491,9 @@ class ImagBehavior(nn.Module):
                     init_sim_state = sim_state[init_t]
                 env.set_state(map2np(obs[init_t]), init_sim_state)
 
-                for openl_steps in range(max_steps - init_steps):
+                for openl_steps in range(horizon):
                     act = to_np(action[init_steps, openl_steps])
+                    # print("Action", act)
                     gt_obs, _, term, _ = env.step({'action': act})()
                     obs_error = np.square(gt_obs['states'] - to_np(obs[init_steps, openl_steps])).mean()
                     if ((openl_steps + 1) <= 20 or (openl_steps + 1) % 5 == 0) or (openl_steps + 1) == max_steps:
@@ -493,13 +501,27 @@ class ImagBehavior(nn.Module):
                             error_lists[(openl_steps + 1)] = [obs_error]
                         else:
                             error_lists[(openl_steps + 1)].append(obs_error)
+                            
+                        if (openl_steps + 1) not in error_lists_per_cond[init_steps]:
+                            error_lists_per_cond[init_steps][(openl_steps + 1)] = [obs_error]
+                        else:
+                            error_lists_per_cond[init_steps][(openl_steps + 1)].append(obs_error)
         metrics = dict()
         for step in error_lists:
             metrics.update({
                 f"agent_errors/dynamics_mse_{step:04}_step": np.array(error_lists[step]).mean(),
                 f"agent_errors/dynamics_mse_std_{step:04}_step": np.array(error_lists[step]).std(),
             })
-        return metrics
+
+        detailed_metrics = dict()
+        for cond_steps in error_lists_per_cond:
+            for step in error_lists_per_cond[cond_steps]:
+                detailed_metrics.update({
+                    f"agent_errors/{cond_steps}_cond_steps/dynamics_mse_{step:04}_step": np.array(error_lists_per_cond[cond_steps][step]).mean(),
+                    f"agent_errors/{cond_steps}_cond_steps/dynamics_mse_std_{step:04}_step": np.array(error_lists_per_cond[cond_steps][step]).std(),
+                })
+
+        return metrics, detailed_metrics
 
     def _imagine(self, start, policy, horizon, repeats=None, reload_policy=False):
         dynamics = self._world_model.dynamics
