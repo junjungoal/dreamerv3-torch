@@ -176,10 +176,10 @@ class RSSM(nn.Module):
         assert isinstance(state, dict), state
         action = action
         action = swap(action)
-        prior = tools.static_scan(self.img_step, [action], state)
+        prior, timing_metrics = tools.static_scan(self.img_step, [action], state, time=True)
         prior = prior[0]
         prior = {k: swap(v) for k, v in prior.items()}
-        return prior
+        return prior, timing_metrics
 
     def get_feat(self, state):
         stoch = state["stoch"]

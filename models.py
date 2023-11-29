@@ -277,7 +277,7 @@ class WorldModel(nn.Module):
             )
             recon = self.heads["decoder"](self.dynamics.get_feat(states))["states"].mode()
             init = {k: v[:, -1] for k, v in states.items()}
-            prior = self.dynamics.imagine(data["action"][:, init_steps:], init)
+            prior, timing_metrics = self.dynamics.imagine(data["action"][:, init_steps:], init)
             openl = self.heads["decoder"](self.dynamics.get_feat(prior))["states"].mode()
             state_predictions = torch.cat([recon, openl], 1)
             max_steps = data['action'].shape[1] - 1
@@ -305,6 +305,8 @@ class WorldModel(nn.Module):
                             error_lists_per_cond[init_steps][open_l_steps].append(obs_error)
 
         metrics = dict()
+        metrics.update(timing_metrics)
+        
         for step in error_lists:
             metrics.update({
                 f"rssm_errors/dynamics_mse_{step:04}_step": np.array(error_lists[step]).mean(),
