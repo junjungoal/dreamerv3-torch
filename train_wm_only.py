@@ -51,8 +51,6 @@ def main(config):
     # logger = tools.Logger(logdir, config.action_repeat * step)
     logger = tools.WandBLogger(logdir, config.action_repeat * step, config.group, config)
 
-    wandb.init(entity="a2i", project="polygrad_results", group=config.group, config=config)
-
     print("Create envs.")
     if config.offline_traindir:
         directory = config.offline_traindir.format(**vars(config))

@@ -57,7 +57,7 @@ class TimeRecording:
 
 class WandBLogger:
     def __init__(self, logdir, step, group, config):
-        wandb.init(entity="a2i", project="diffusion_world_models", group=group, config=config)
+        wandb.init(entity="a2i", project="polygrad_results", group=group, config=config)
         self._logdir = logdir
         self._last_step = None
         self._last_time = None
