@@ -51,7 +51,7 @@ def main(config):
     # logger = tools.Logger(logdir, config.action_repeat * step)
     logger = tools.WandBLogger(logdir, config.action_repeat * step, config.group, config)
 
-    wandb.init(entity="a2i", project="diffusion_world_models", group=config.group, config=config)
+    wandb.init(entity="a2i", project="polygrad_results", group=config.group, config=config)
 
     print("Create envs.")
     if config.offline_traindir:
@@ -146,8 +146,8 @@ def main(config):
             policy_output = {"action": act}
             return policy_output, agent_state
 
-    epochs = 100
-    epoch_length = 5000
+    epochs = 50
+    epoch_length = 10000
     train_steps = 0
     agent._task_behavior.reload_policy = a2c.forward_actor
     for epoch in range(epochs):
