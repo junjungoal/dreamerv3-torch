@@ -852,7 +852,7 @@ def args_type(default):
     return lambda x: parse_string(x) if isinstance(x, str) else parse_object(x)
 
 
-def static_scan(fn, inputs, start, time=False):
+def static_scan(fn, inputs, start, time_run=False):
     last = start
     indices = range(inputs[0].shape[0])
     flag = True
@@ -862,7 +862,7 @@ def static_scan(fn, inputs, start, time=False):
     for index in indices:
         inp = lambda x: (_input[x] for _input in inputs)
         last = fn(last, *inp(index))
-        if time:
+        if time_run:
             timing_metrics[f"imagine_time/step_{step+1}"] = time.time() - start
             step += 1
         if flag:
@@ -903,7 +903,7 @@ def static_scan(fn, inputs, start, time=False):
     if type(last) == type({}):
         outputs = [outputs]
     
-    if time:
+    if time_run:
         return outputs, timing_metrics
     else:
         return outputs

@@ -176,7 +176,7 @@ class RSSM(nn.Module):
         assert isinstance(state, dict), state
         action = action
         action = swap(action)
-        prior, timing_metrics = tools.static_scan(self.img_step, [action], state, time=True)
+        prior, timing_metrics = tools.static_scan(self.img_step, [action], state, time_run=True)
         prior = prior[0]
         prior = {k: swap(v) for k, v in prior.items()}
         return prior, timing_metrics
