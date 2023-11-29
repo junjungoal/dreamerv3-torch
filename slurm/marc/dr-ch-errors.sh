@@ -32,4 +32,4 @@ LOAD_STEP=1000000
 H=300
 
 cd /jmain02/home/J2AD008/wga37/mxr40-wga37/github/dreamerv3-torch
-/jmain02/home/J2AD008/wga37/mxr40-wga37/.conda/envs/diffusion/bin/python3 train_wm_only.py --configs gym_proprio --task gym_$TASK --logdir /data/engs-a2i/pemb5572/dreamerv3/$TASK/$GROUP/$H/$SEED --seed $SEED --group $GROUP --eval_batch_length $H --load_path $DATASET --load_step $LOAD_STEP 
+/jmain02/home/J2AD008/wga37/mxr40-wga37/.conda/envs/diffusion/bin/python3 train_wm_only.py --configs gym_proprio --task gym_$TASK --logdir /jmain02/home/J2AD008/wga37/mxr40-wga37/logdir/dreamerv3/$TASK/$GROUP/$H/$SEED --seed $SEED --group $GROUP --eval_batch_length $H --load_path $DATASET --load_step $LOAD_STEP 
