@@ -92,9 +92,9 @@ class Dreamer(nn.Module):
                 for name, values in self._metrics.items():
                     self._logger.scalar(name, float(np.mean(values)))
                     self._metrics[name] = []
-                if self._config.video_pred_log:
-                    openl = self._wm.video_pred(next(self._dataset))
-                    self._logger.video("train_openl", to_np(openl))
+                # if self._config.video_pred_log:
+                #     openl = self._wm.video_pred(next(self._dataset))
+                #     self._logger.video("train_openl", to_np(openl))
                 self._logger.write(fps=True)
 
         policy_output, state = self._policy(obs, state, training)
@@ -356,9 +356,9 @@ def main(config):
                 is_eval=True,
                 episodes=config.eval_episode_num,
             )
-            if config.video_pred_log:
-                video_pred = agent._wm.video_pred(next(eval_dataset))
-                logger.video("eval_openl", to_np(video_pred))
+            # if config.video_pred_log:
+            #     video_pred = agent._wm.video_pred(next(eval_dataset))
+            #     logger.video("eval_openl", to_np(video_pred))
 
             # if config.error_pred_log:
             #     data = next(eval_dataset)

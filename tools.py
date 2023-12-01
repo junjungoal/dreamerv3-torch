@@ -96,14 +96,14 @@ class WandBLogger:
         else:
             wandb.log({name: [wandb.Image(images)]}, step=step)
 
-    def log_videos(self, vids, name, step=None, fps=20):
-        """Logs videos to WandB in mp4 format.
-        Assumes list of numpy arrays as input with [time, channels, height, width]."""
-        assert len(vids[0].shape) == 4 and vids[0].shape[1] == 3
-        assert isinstance(vids[0], np.ndarray)
-        if vids[0].max() <= 1.0: vids = [np.asarray(vid * 255.0, dtype=np.uint8) for vid in vids]
-        log_dict = {name: [wandb.Video(vid, fps=fps, format="mp4") for vid in vids]}
-        wandb.log(log_dict) if step is None else wandb.log(log_dict, step=step)
+    # def log_videos(self, vids, name, step=None, fps=20):
+    #     """Logs videos to WandB in mp4 format.
+    #     Assumes list of numpy arrays as input with [time, channels, height, width]."""
+    #     assert len(vids[0].shape) == 4 and vids[0].shape[1] == 3
+    #     assert isinstance(vids[0], np.ndarray)
+    #     if vids[0].max() <= 1.0: vids = [np.asarray(vid * 255.0, dtype=np.uint8) for vid in vids]
+    #     log_dict = {name: [wandb.Video(vid, fps=fps, format="mp4") for vid in vids]}
+    #     wandb.log(log_dict) if step is None else wandb.log(log_dict, step=step)
 
     def write(self, fps=False, step=False):
         if not step:
@@ -123,13 +123,13 @@ class WandBLogger:
             #     self.log_scalar(value, name, step)
         for name, value in self._images.items():
             self.log_images(value, name, step=step)
-        for name, value in self._videos.items():
-            name = name if isinstance(name, str) else name.decode("utf-8")
-            if np.issubdtype(value.dtype, np.floating):
-                value = np.clip(255 * value, 0, 255).astype(np.uint8)
-            B, T, H, W, C = value.shape
-            value = value.transpose(1, 4, 2, 0, 3).reshape((1, T, C, H, B * W))
-            self.log_videos(value, name, step=step, fps=16)
+        # for name, value in self._videos.items():
+        #     name = name if isinstance(name, str) else name.decode("utf-8")
+        #     if np.issubdtype(value.dtype, np.floating):
+        #         value = np.clip(255 * value, 0, 255).astype(np.uint8)
+        #     B, T, H, W, C = value.shape
+        #     value = value.transpose(1, 4, 2, 0, 3).reshape((1, T, C, H, B * W))
+        #     self.log_videos(value, name, step=step, fps=16)
 
         self._scalars = {}
         self._images = {}
@@ -304,7 +304,7 @@ def simulate(
                 save_episodes(directory, {envs[i].id: cache[envs[i].id]})
                 length = len(cache[envs[i].id]["reward"]) - 1
                 score = float(np.array(cache[envs[i].id]["reward"]).sum())
-                video = cache[envs[i].id]["image"]
+                # video = cache[envs[i].id]["image"]
                 # record logs given from environments
                 for key in list(cache[envs[i].id].keys()):
                     if "log_" in key:
@@ -332,7 +332,7 @@ def simulate(
 
                     score = sum(eval_scores) / len(eval_scores)
                     length = sum(eval_lengths) / len(eval_lengths)
-                    logger.video(f"eval_policy", np.array(video)[None])
+                    # logger.video(f"eval_policy", np.array(video)[None])
 
                     if len(eval_scores) >= episodes and not eval_done:
                         logger.scalar(f"eval_return", score)
