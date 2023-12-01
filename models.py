@@ -273,16 +273,14 @@ class WorldModel(nn.Module):
         for init_steps in range(1, max_init_steps, interval):
             data = self.preprocess(data)
             embed = self.encoder(data)
-            if init_steps <= 5:
-                start_time = time.time()
+            start_time = time.time()
             states, post = self.dynamics.observe(
                 embed[:, 0:init_steps], data["action"][:, 0:init_steps], data["is_first"][:, 0:init_steps]
             )
             init = {k: v[:, -1] for k, v in states.items()}
+            prior, timing = self.dynamics.imagine(data["action"][:, init_steps:], init, start_time=start_time)
             if init_steps <= 5:
-                prior, timing_metrics = self.dynamics.imagine(data["action"][:, init_steps:], init, start_time=start_time)
-            else:
-                prior, _ = self.dynamics.imagine(data["action"][:, init_steps:], init)
+                timing_metrics = timing
             openl = self.heads["decoder"](self.dynamics.get_feat(prior))["states"].mode()
             recon = self.heads["decoder"](self.dynamics.get_feat(states))["states"].mode()
             state_predictions = torch.cat([recon, openl], 1)
