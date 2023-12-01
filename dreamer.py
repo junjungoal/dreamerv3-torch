@@ -360,14 +360,14 @@ def main(config):
                 video_pred = agent._wm.video_pred(next(eval_dataset))
                 logger.video("eval_openl", to_np(video_pred))
 
-            if config.error_pred_log:
-                data = next(eval_dataset)
-                error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
-                agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, horizon=config.eval_batch_length)
-                for key, val in error_metrics.items():
-                    logger.scalar(key, float(val))
-                for key, val in agent_error_metrics.items():
-                    logger.scalar(key, float(val))
+            # if config.error_pred_log:
+            #     data = next(eval_dataset)
+            #     error_metrics, post = agent._wm.compute_traj_errors(eval_envs[0],data)
+            #     agent_error_metrics = agent._task_behavior.compute_traj_errors(eval_envs[0], post, data, horizon=config.eval_batch_length)
+            #     for key, val in error_metrics.items():
+            #         logger.scalar(key, float(val))
+            #     for key, val in agent_error_metrics.items():
+            #         logger.scalar(key, float(val))
 
         print("Start training.")
         state = tools.simulate(
