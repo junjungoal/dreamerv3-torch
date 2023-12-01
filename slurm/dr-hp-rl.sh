@@ -29,4 +29,4 @@ TASK=Hopper-v3
 GROUP=dreamer_hopper
 
 cd /jmain02/home/J2AD008/wga37/mxr40-wga37/github/dreamerv3-torch
-WANDB__SERVICE_WAIT=300 python3 dreamer.py --steps 1e6 --configs gym_proprio --task gym_$TASK --logdir /jmain02/home/J2AD008/wga37/mxr40-wga37/logdir/dreamerv3/$TASK/$GROUP/$SEED --seed $SEED --group $GROUP
+WANDB__SERVICE_WAIT=300 /jmain02/home/J2AD008/wga37/mxr40-wga37/.conda/envs/diffusion/bin/python3 dreamer.py --steps 1e6 --configs gym_proprio --task gym_$TASK --logdir /jmain02/home/J2AD008/wga37/mxr40-wga37/logdir/dreamerv3/$TASK/$GROUP/$SEED --seed $SEED --group $GROUP
