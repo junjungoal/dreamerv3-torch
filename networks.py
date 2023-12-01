@@ -169,14 +169,14 @@ class RSSM(nn.Module):
         prior = {k: swap(v) for k, v in prior.items()}
         return post, prior
 
-    def imagine(self, action, state=None):
+    def imagine(self, action, state=None, start_time=None):
         swap = lambda x: x.permute([1, 0] + list(range(2, len(x.shape))))
         if state is None:
             state = self.initial(action.shape[0])
         assert isinstance(state, dict), state
         action = action
         action = swap(action)
-        prior, timing_metrics = tools.static_scan(self.img_step, [action], state, time_run=True)
+        prior, timing_metrics = tools.static_scan(self.img_step, [action], state, start_time=start_time)
         prior = prior[0]
         prior = {k: swap(v) for k, v in prior.items()}
         return prior, timing_metrics
