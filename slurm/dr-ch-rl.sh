@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --time=140:00:00
+#SBATCH --time=143:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --array=1-4
 #SBATCH --partition=small
-#SBATCH --mem=20G 
+#SBATCH --mem=32G 
 #SBATCH --cpus-per-task=2
 #SBATCH --exclude=dgk725
 
